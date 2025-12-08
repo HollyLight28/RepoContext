@@ -1,0 +1,5 @@
+{
+  "name": "RepoContext",
+  "description": "A professional developer tool to flatten GitHub repositories into a single text file for LLM context, code review, or archiving.",
+  "requestFramePermissions": []
+}
