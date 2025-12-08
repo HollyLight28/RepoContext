@@ -28,7 +28,7 @@ export class GitHubService {
     if (!response.ok) {
       if (response.status === 404) throw new Error('Repository not found. Check URL or visibility.');
       if (response.status === 401) throw new Error('Invalid API Token or Unauthorized.');
-      if (response.status === 403) throw new Error('API Rate limit exceeded. Please use a Token.');
+      if (response.status === 403) throw new Error('⚠️ GitHub Rate Limit Reached. Don\'t worry! GitHub limits anonymous use to 60 requests/hour. Just create a free Token using the link above and you\'ll get 5,000 requests.');
       throw new Error(`GitHub API Error: ${response.statusText}`);
     }
 
@@ -42,6 +42,7 @@ export class GitHubService {
 
     if (!response.ok) {
       if (response.status === 404) throw new Error(`Branch '${branch}' not found.`);
+      if (response.status === 403) throw new Error('⚠️ GitHub Rate Limit Reached. Please add a Token to continue.');
       throw new Error('Failed to fetch file tree.');
     }
 
@@ -60,15 +61,14 @@ export class GitHubService {
     });
 
     if (!response.ok) {
+      if (response.status === 403) throw new Error('Rate Limit Exceeded during download.');
       throw new Error('Failed to fetch file content.');
     }
 
     const data = await response.json();
-    // GitHub blobs are base64 encoded
     return this.decodeBase64(data.content);
   }
 
-  // Robust Base64 decoding handles Unicode characters correctly
   private decodeBase64(str: string): string {
     try {
       return decodeURIComponent(
@@ -87,19 +87,16 @@ export class GitHubService {
     const parts = path.split('/');
     const filename = parts[parts.length - 1];
     
-    // Check directories
     for (const part of parts) {
       if (IGNORED_DIRECTORIES.has(part)) return true;
     }
 
-    // Check extension
-    if (filename.startsWith('.')) return false; // Config files often have no extension but start with dot
-    if (!filename.includes('.')) return false; // No extension (like Makefiles), assume text
+    if (filename.startsWith('.')) return false;
+    if (!filename.includes('.')) return false;
 
     const ext = filename.split('.').pop()?.toLowerCase();
     if (ext && IGNORED_EXTENSIONS.has(ext)) return true;
 
-    // Custom ignore patterns (simple includes check)
     if (customIgnores.length > 0) {
       for (const pattern of customIgnores) {
         if (pattern.trim() && path.includes(pattern.trim())) return true;
@@ -110,7 +107,6 @@ export class GitHubService {
   }
 }
 
-// Simple approximation: ~4 chars per token for English text/code
 const estimateTokens = (text: string): number => {
   return Math.ceil(text.length / 4);
 };
@@ -129,26 +125,21 @@ const formatFileContent = (path: string, content: string, format: OutputFormat):
   }
 };
 
-interface MergeOptions {
+interface FetchTreeOptions {
   repoUrl: string;
   branch?: string;
   token: string;
-  format: OutputFormat;
   maxFileSizeKB: number;
   customIgnores: string[];
-  onProgress: (processed: number, total: number, currentFile: string) => void;
 }
 
-export const mergeRepo = async ({
-  repoUrl, 
+export const fetchRepoStructure = async ({
+  repoUrl,
   branch,
-  token, 
-  format,
+  token,
   maxFileSizeKB,
-  customIgnores,
-  onProgress
-}: MergeOptions): Promise<{ content: string; fileCount: number; totalSize: number; tokenCount: number }> => {
-  
+  customIgnores
+}: FetchTreeOptions): Promise<{ tree: GitHubTreeItem[], branch: string, repoName: string }> => {
   const cleanUrl = repoUrl.replace('https://github.com/', '').replace(/\/$/, '');
   const [owner, repo] = cleanUrl.split('/');
 
@@ -156,61 +147,70 @@ export const mergeRepo = async ({
 
   const service = new GitHubService(token);
   
-  // 1. Get Details (to find default branch if not specified)
   const repoInfo = await service.getRepoDetails(owner, repo);
   const targetBranch = branch || repoInfo.default_branch;
   
-  // 2. Get Tree
-  const tree = await service.getRepoTree(owner, repo, targetBranch);
+  const rawTree = await service.getRepoTree(owner, repo, targetBranch);
   
-  // 3. Filter
   const maxBytes = maxFileSizeKB * 1024;
-  const blobs = tree.filter(item => {
+  const filteredTree = rawTree.filter(item => {
     if (item.type !== 'blob') return false;
     if (service.isIgnored(item.path, customIgnores)) return false;
-    // Check size if available (GitHub API usually returns size in tree)
     if (item.size && item.size > maxBytes) return false;
     return true;
   });
+
+  return { tree: filteredTree, branch: targetBranch, repoName: `${owner}/${repo}` };
+};
+
+interface MergeOptions {
+  files: GitHubTreeItem[];
+  repoName: string;
+  branch: string;
+  token: string;
+  format: OutputFormat;
+  onProgress: (processed: number, total: number, currentFile: string) => void;
+}
+
+export const generateMergedContent = async ({
+  files,
+  repoName,
+  branch,
+  token,
+  format,
+  onProgress
+}: MergeOptions): Promise<{ content: string; fileCount: number; totalSize: number; tokenCount: number }> => {
+  
+  const [owner, repo] = repoName.split('/');
+  const service = new GitHubService(token);
   
   let mergedContent = '';
-  // Add header with metadata
+  
   if (format === 'markdown') {
-    mergedContent += `# Repository: ${owner}/${repo}\n# Branch: ${targetBranch}\n# Files: ${blobs.length}\n\n`;
+    mergedContent += `# Repository: ${repoName}\n# Branch: ${branch}\n# Files: ${files.length}\n\n`;
   } else if (format === 'xml') {
-    mergedContent += `<repository name="${owner}/${repo}" branch="${targetBranch}" file_count="${blobs.length}">\n`;
+    mergedContent += `<repository name="${repoName}" branch="${branch}" file_count="${files.length}">\n`;
   } else {
-    mergedContent += `Repository: ${owner}/${repo}\nBranch: ${targetBranch}\nFiles: ${blobs.length}\n\n`;
+    mergedContent += `Repository: ${repoName}\nBranch: ${branch}\nFiles: ${files.length}\n\n`;
   }
 
   let processedCount = 0;
-  let totalSize = 0;
 
-  // 4. Batch Processing
-  for (let i = 0; i < blobs.length; i += CONCURRENCY_LIMIT) {
-    const chunk = blobs.slice(i, i + CONCURRENCY_LIMIT);
+  for (let i = 0; i < files.length; i += CONCURRENCY_LIMIT) {
+    const chunk = files.slice(i, i + CONCURRENCY_LIMIT);
     
     const results = await Promise.all(chunk.map(async (file) => {
-      onProgress(processedCount, blobs.length, file.path);
+      onProgress(processedCount, files.length, file.path);
       try {
         const content = await service.getBlob(owner, repo, file.sha);
-        
         if (content.includes('\0')) return null;
-
-        return {
-          path: file.path,
-          content: content
-        };
+        return { path: file.path, content: content };
       } catch (err) {
         console.warn(`Failed to fetch ${file.path}`, err);
-        return {
-          path: file.path,
-          content: `[Error fetching file: ${err}]`
-        };
+        return { path: file.path, content: `[Error fetching file: ${err}]` };
       }
     }));
 
-    // Append to result
     for (const res of results) {
       if (res) {
         mergedContent += formatFileContent(res.path, res.content, format);
@@ -223,8 +223,20 @@ export const mergeRepo = async ({
     mergedContent += `\n</repository>`;
   }
 
-  totalSize = mergedContent.length;
+  const totalSize = mergedContent.length;
   const tokenCount = estimateTokens(mergedContent);
 
   return { content: mergedContent, fileCount: processedCount, totalSize, tokenCount };
+};
+
+export const mergeRepo = async (options: FetchTreeOptions & { format: OutputFormat, onProgress: any }) => {
+  const { tree, branch, repoName } = await fetchRepoStructure(options);
+  return generateMergedContent({
+    files: tree,
+    repoName,
+    branch,
+    token: options.token,
+    format: options.format,
+    onProgress: options.onProgress
+  });
 };

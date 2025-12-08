@@ -1,22 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { ProgressBar } from './components/ProgressBar';
 import { ResultCard } from './components/ResultCard';
+import { FileTree } from './components/FileTree';
+import { History, addToHistory } from './components/History';
 import { ProcessState, OutputFormat } from './types';
-import { mergeRepo } from './services/githubService';
-import { DEFAULT_REPO } from './constants';
+import { fetchRepoStructure, generateMergedContent } from './services/githubService';
 
 const App: React.FC = () => {
-  const [repoUrl, setRepoUrl] = useState(DEFAULT_REPO);
+  const [repoUrl, setRepoUrl] = useState('');
   const [branch, setBranch] = useState('');
   const [token, setToken] = useState('');
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('markdown');
   const [maxFileSize, setMaxFileSize] = useState<number>(100); // KB
   const [customIgnores, setCustomIgnores] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [autoStarted, setAutoStarted] = useState(false);
+
+  const [fetchedRepoInfo, setFetchedRepoInfo] = useState<{name: string, branch: string} | null>(null);
 
   const [processState, setProcessState] = useState<ProcessState>({
     status: 'idle',
@@ -27,39 +29,14 @@ const App: React.FC = () => {
     result: null,
     resultSize: 0,
     tokenCount: 0,
+    tree: []
   });
 
-  // Load token from localStorage
   useEffect(() => {
     const savedToken = localStorage.getItem('gh_token');
     if (savedToken) setToken(savedToken);
   }, []);
 
-  // Handle "Ingest" URL pattern (domain.com/owner/repo)
-  useEffect(() => {
-    const path = window.location.pathname.substring(1); // remove leading slash
-    // Simple check: owner/repo pattern (and not just a random file or empty)
-    // Avoid matching typical assets like main.js if routing is messy
-    if (path && path.split('/').length >= 2 && !path.includes('.')) {
-      const [owner, repo, ...rest] = path.split('/');
-      const cleanRepoPath = `${owner}/${repo}`;
-      setRepoUrl(cleanRepoPath);
-      
-      // If there is a 3rd part, it might be the branch, but standard github url structure 
-      // is usually /owner/repo/tree/branch. For simplicity, we just take owner/repo.
-      
-      // Only auto-start once per page load and if we have a valid path
-      if (!autoStarted && !processState.result) {
-        setAutoStarted(true);
-        // We need to use a timeout or a ref to ensure the state (repoUrl) is updated
-        // before we trigger the merge. However, since we are inside the effect setting it,
-        // we can pass the value directly to a function.
-        triggerMerge(cleanRepoPath);
-      }
-    }
-  }, [autoStarted, processState.result]);
-
-  // Save token to localStorage
   const handleTokenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVal = e.target.value;
     setToken(newVal);
@@ -70,32 +47,77 @@ const App: React.FC = () => {
     }
   };
 
-  const triggerMerge = async (urlToMerge: string) => {
+  const handleFetchTree = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repoUrl.trim()) return;
+
     setProcessState({
       status: 'fetching_tree',
       totalFiles: 0,
       processedFiles: 0,
-      currentFile: 'Initializing...',
+      currentFile: 'Scanning repository structure...',
       error: null,
       result: null,
       resultSize: 0,
       tokenCount: 0,
+      tree: []
     });
 
     try {
-      const result = await mergeRepo({
-        repoUrl: urlToMerge, 
-        branch: branch || undefined, 
-        token, // Uses current state token (might be empty if not loaded yet, but usually localStorage loads fast)
-        format: outputFormat,
+      const { tree, branch: foundBranch, repoName } = await fetchRepoStructure({
+        repoUrl,
+        branch: branch || undefined,
+        token,
         maxFileSizeKB: maxFileSize,
-        customIgnores: customIgnores.split(',').map(s => s.trim()).filter(Boolean),
+        customIgnores: customIgnores.split(',').map(s => s.trim()).filter(Boolean)
+      });
+
+      if (tree.length === 0) {
+        throw new Error("No files found. Check your ignore settings or repo is empty.");
+      }
+
+      setFetchedRepoInfo({ name: repoName, branch: foundBranch });
+      addToHistory(repoName);
+      
+      setProcessState(prev => ({
+        ...prev,
+        status: 'selecting',
+        tree: tree,
+        totalFiles: tree.length
+      }));
+
+    } catch (err) {
+      setProcessState(prev => ({
+        ...prev,
+        status: 'error',
+        error: err instanceof Error ? err.message : 'An unknown error occurred'
+      }));
+    }
+  };
+
+  const handleMergeSelection = async (selectedPaths: string[]) => {
+    if (!fetchedRepoInfo) return;
+
+    const selectedFiles = processState.tree.filter(f => selectedPaths.includes(f.path));
+
+    setProcessState(prev => ({
+      ...prev,
+      status: 'downloading',
+      totalFiles: selectedFiles.length,
+      processedFiles: 0,
+    }));
+
+    try {
+      const result = await generateMergedContent({
+        files: selectedFiles,
+        repoName: fetchedRepoInfo.name,
+        branch: fetchedRepoInfo.branch,
+        token,
+        format: outputFormat,
         onProgress: (processed, total, current) => {
           setProcessState(prev => ({
             ...prev,
-            status: 'downloading',
             processedFiles: processed,
-            totalFiles: total,
             currentFile: current
           }));
         }
@@ -110,20 +132,13 @@ const App: React.FC = () => {
         processedFiles: result.fileCount,
         totalFiles: result.fileCount
       }));
-
     } catch (err) {
-      setProcessState(prev => ({
+       setProcessState(prev => ({
         ...prev,
         status: 'error',
-        error: err instanceof Error ? err.message : 'An unknown error occurred'
+        error: err instanceof Error ? err.message : 'Error downloading content'
       }));
     }
-  };
-
-  const handleMergeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!repoUrl.trim()) return;
-    triggerMerge(repoUrl);
   };
 
   const reset = () => {
@@ -136,12 +151,12 @@ const App: React.FC = () => {
       result: null,
       resultSize: 0,
       tokenCount: 0,
+      tree: []
     });
-    // Clear URL path without reloading
-    window.history.pushState({}, '', '/');
+    setFetchedRepoInfo(null);
   };
 
-  const isProcessing = ['fetching_tree', 'downloading', 'filtering', 'merging'].includes(processState.status);
+  const isProcessing = ['fetching_tree', 'downloading', 'merging'].includes(processState.status);
 
   const getFormatLabel = (fmt: OutputFormat) => {
     switch (fmt) {
@@ -151,17 +166,27 @@ const App: React.FC = () => {
     }
   };
 
-  // Get current domain for the pro tip
-  const currentDomain = typeof window !== 'undefined' ? window.location.host : 'your-site.com';
-
   return (
-    <div className="min-h-screen bg-background text-zinc-100 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-lg space-y-8">
+    <div className="min-h-screen bg-[#050507] text-zinc-100 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden selection:bg-indigo-500/30 selection:text-white">
+      
+      {/* PROFESSIONAL BACKGROUND */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Deep mesh gradient */}
+        <div className="absolute -top-[30%] -left-[10%] w-[800px] h-[800px] bg-indigo-900/10 rounded-full blur-[150px] mix-blend-screen animate-pulse duration-10000"></div>
+        <div className="absolute -bottom-[30%] -right-[10%] w-[800px] h-[800px] bg-violet-900/10 rounded-full blur-[150px] mix-blend-screen"></div>
+        
+        {/* Tech Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
+      </div>
+
+      <div className="w-full max-w-3xl space-y-12 relative z-10">
         <Header />
 
-        <div className="bg-surface border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-          {/* Decorative glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
+        {/* MAIN GLASS CARD */}
+        <div className="bg-zinc-900/20 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 sm:p-10 shadow-[0_0_50px_rgba(0,0,0,0.3)] relative overflow-hidden ring-1 ring-white/5">
+          
+          {/* Accent lighting on card */}
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent"></div>
           
           {processState.status === 'completed' && processState.result ? (
             <ResultCard 
@@ -172,15 +197,22 @@ const App: React.FC = () => {
                 content: processState.result
               }}
               onReset={reset}
+              format={outputFormat}
             />
+          ) : processState.status === 'selecting' ? (
+             <FileTree 
+                files={processState.tree}
+                onConfirm={handleMergeSelection}
+                onCancel={reset}
+             />
           ) : (
-            <form onSubmit={handleMergeSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
+            <form onSubmit={handleFetchTree} className="space-y-8">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
                     <Input
-                      label="GitHub Repository"
-                      placeholder="owner/repo"
+                      label="GitHub Repository URL"
+                      placeholder="https://github.com/owner/repository"
                       value={repoUrl}
                       onChange={(e) => setRepoUrl(e.target.value)}
                       disabled={isProcessing}
@@ -198,10 +230,10 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Format Selection */}
+                {/* Format Tabs */}
                 <div>
-                   <label className="text-sm font-medium text-zinc-400 pl-1 mb-2 block">Output Format</label>
-                   <div className="grid grid-cols-3 gap-2">
+                   <label className="text-xs font-semibold text-zinc-400 pl-1 uppercase tracking-wide mb-3 block">Output Format</label>
+                   <div className="grid grid-cols-3 gap-2 p-1.5 bg-black/40 rounded-2xl border border-zinc-800/50">
                       {(['markdown', 'plain', 'xml'] as OutputFormat[]).map((fmt) => (
                         <button
                           key={fmt}
@@ -209,37 +241,41 @@ const App: React.FC = () => {
                           onClick={() => setOutputFormat(fmt)}
                           disabled={isProcessing}
                           className={`
-                            py-2 px-1 rounded-lg text-sm font-medium border transition-all truncate
+                            py-2.5 px-2 rounded-xl text-sm font-semibold transition-all duration-300 relative overflow-hidden
                             ${outputFormat === fmt 
-                              ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.15)]' 
-                              : 'bg-zinc-900/50 border-zinc-700 text-zinc-400 hover:bg-zinc-800'}
+                              ? 'bg-zinc-800 text-white shadow-lg shadow-black/20 ring-1 ring-white/10' 
+                              : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}
                           `}
                         >
-                          {getFormatLabel(fmt)}
+                          {outputFormat === fmt && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 to-transparent opacity-50"></div>
+                          )}
+                          <span className="relative z-10">{getFormatLabel(fmt)}</span>
                         </button>
                       ))}
                    </div>
-                   <p className="text-xs text-zinc-500 mt-2 pl-1 h-8">
-                     {outputFormat === 'markdown' && "Recommended. Adds formatting so AI understands code structure better."}
-                     {outputFormat === 'xml' && "Advanced. Wraps files in tags. Useful for strict parsing tasks."}
-                     {outputFormat === 'plain' && "Basic. Just the raw code separated by lines. No special formatting."}
+                   <p className="text-[11px] text-zinc-500 mt-2.5 pl-2 h-4 flex items-center gap-1.5 opacity-80">
+                     <span className="w-1 h-1 rounded-full bg-indigo-500"></span>
+                     {outputFormat === 'markdown' && "Recommended. Optimized for syntax highlighting in ChatGPT."}
+                     {outputFormat === 'xml' && "Structured tagging. Ideal for Claude's long-context window."}
+                     {outputFormat === 'plain' && "Minimal overhead. Maximum efficiency for huge codebases."}
                    </p>
                 </div>
                 
-                <div className="relative">
+                <div className="relative pt-2">
                   <Input
                     label={
                       <div className="flex justify-between items-center w-full">
-                        <span>Personal Access Token (Optional)</span>
+                        <span>Private Repo Access</span>
                         <a 
                           href="https://github.com/settings/tokens/new?description=RepoContext&scopes=repo" 
                           target="_blank" 
                           rel="noreferrer"
-                          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 group"
+                          className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 hover:bg-indigo-500/20 transition-all flex items-center gap-1 group"
                           tabIndex={-1}
                         >
-                          Generate Token 
-                          <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          GENERATE TOKEN 
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
                         </a>
@@ -249,33 +285,35 @@ const App: React.FC = () => {
                     type="password"
                     value={token}
                     onChange={handleTokenChange}
-                    helperText="Recommended for private repos and to avoid rate limits."
+                    helperText="Recommended for larger repos to bypass GitHub rate limits."
                     disabled={isProcessing}
                   />
                 </div>
 
-                {/* Advanced Settings Toggle */}
-                <div className="pt-2">
+                {/* Advanced Settings */}
+                <div className="pt-2 border-t border-white/5">
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors group py-2"
                   >
-                    <svg 
-                      className={`w-4 h-4 transition-transform duration-200 ${showAdvanced ? 'rotate-90' : ''}`} 
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                    Advanced Settings
+                    <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${showAdvanced ? 'bg-indigo-500/20 text-indigo-400' : 'bg-zinc-800/50'}`}>
+                      <svg 
+                        className={`w-3 h-3 transition-transform duration-300 ${showAdvanced ? 'rotate-90' : ''}`} 
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                    ADVANCED CONFIGURATION
                   </button>
 
                   {showAdvanced && (
-                    <div className="mt-4 p-4 bg-zinc-900/50 rounded-lg border border-zinc-800 space-y-4 animate-in slide-in-from-top-2">
+                    <div className="mt-4 p-5 bg-black/40 rounded-xl border border-white/10 space-y-6 animate-in slide-in-from-top-2">
                       <div>
-                        <div className="flex justify-between mb-1">
-                          <label className="text-xs font-medium text-zinc-400">Max File Size</label>
-                          <span className="text-xs text-indigo-400 font-mono">{maxFileSize} KB</span>
+                        <div className="flex justify-between mb-3">
+                          <label className="text-xs font-medium text-zinc-300">Max File Size</label>
+                          <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-900/30 px-2 py-0.5 rounded border border-indigo-500/30">{maxFileSize} KB</span>
                         </div>
                         <input 
                           type="range" 
@@ -284,18 +322,17 @@ const App: React.FC = () => {
                           step="10"
                           value={maxFileSize}
                           onChange={(e) => setMaxFileSize(Number(e.target.value))}
-                          className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                          className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400"
                         />
-                        <p className="text-[10px] text-zinc-500 mt-1">Skips files larger than this to save tokens.</p>
                       </div>
 
                       <Input 
                         label="Ignore Patterns"
-                        placeholder="tests/, *.test.ts, docs/"
+                        placeholder="e.g. tests/, *.spec.ts, assets/"
                         value={customIgnores}
                         onChange={(e) => setCustomIgnores(e.target.value)}
-                        helperText="Comma separated list of folders or files to skip."
-                        className="text-sm"
+                        className="bg-zinc-900/80"
+                        helperText="Comma separated list of files or folders to skip."
                       />
                     </div>
                   )}
@@ -303,9 +340,9 @@ const App: React.FC = () => {
               </div>
 
               {processState.status === 'error' && (
-                <div className="p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-sm text-red-200 flex items-start gap-2 animate-in slide-in-from-top-2">
-                  <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-200 flex items-start gap-3 animate-in slide-in-from-top-2 shadow-lg shadow-red-500/5">
+                  <svg className="w-5 h-5 shrink-0 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                   <span>{processState.error}</span>
                 </div>
@@ -318,37 +355,28 @@ const App: React.FC = () => {
                   currentFile={processState.currentFile}
                 />
               ) : (
-                <Button 
-                  type="submit" 
-                  className="w-full py-3 text-lg" 
-                  isLoading={isProcessing}
-                >
-                  Merge to File
-                </Button>
+                <div className="space-y-6 pt-2">
+                  <Button 
+                    type="submit" 
+                    className="w-full py-4 text-lg font-bold tracking-wide" 
+                    isLoading={isProcessing}
+                  >
+                    SCAN REPOSITORY
+                  </Button>
+                  
+                  {/* History Component */}
+                  {processState.status === 'idle' && (
+                    <History onSelect={(repo) => setRepoUrl(`https://github.com/${repo}`)} />
+                  )}
+                </div>
               )}
             </form>
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-4">
-           {/* Pro Tip Card */}
-           <div className="bg-zinc-900/30 border border-zinc-800 rounded-lg p-3 max-w-sm w-full flex items-center gap-3">
-              <div className="bg-indigo-500/10 p-2 rounded-md">
-                <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold text-zinc-300">Magic URL:</p>
-                <p className="text-[10px] text-zinc-500 leading-tight">
-                  Add <span className="font-mono text-zinc-400">/owner/repo</span> to this site's URL to instantly start merging.
-                  <br/>Example: <span className="text-zinc-600">{currentDomain}/facebook/react</span>
-                </p>
-              </div>
-           </div>
-
-           <p className="text-xs text-zinc-600">
-             Client-side processing. Your code never leaves your browser.
+        <div className="flex flex-col items-center gap-4 relative z-10 opacity-60 hover:opacity-100 transition-opacity">
+           <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">
+             Secure Client-Side Processing • No Server Storage
            </p>
         </div>
       </div>

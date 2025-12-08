@@ -9,9 +9,10 @@ interface ResultCardProps {
     content: string;
   };
   onReset: () => void;
+  format?: 'plain' | 'markdown' | 'xml';
 }
 
-export const ResultCard: React.FC<ResultCardProps> = ({ stats, onReset }) => {
+export const ResultCard: React.FC<ResultCardProps> = ({ stats, onReset, format = 'markdown' }) => {
   const [copied, setCopied] = useState(false);
 
   const formatSize = (bytes: number) => {
@@ -39,122 +40,153 @@ export const ResultCard: React.FC<ResultCardProps> = ({ stats, onReset }) => {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([stats.content], { type: 'text/plain' });
+    let extension = 'txt';
+    let mimeType = 'text/plain';
+
+    if (format === 'markdown') {
+      extension = 'md';
+      mimeType = 'text/markdown';
+    } else if (format === 'xml') {
+      extension = 'xml';
+      mimeType = 'application/xml';
+    }
+
+    const blob = new Blob([stats.content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `repo-merge-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `repo-context-${new Date().toISOString().slice(0, 10)}.${extension}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // Context window visualization (approximate)
   const gpt4Context = 128000;
   const claudeContext = 200000;
   
   const getContextColor = (limit: number) => {
     const usage = stats.tokenCount / limit;
-    if (usage > 1) return 'text-red-500';
-    if (usage > 0.8) return 'text-yellow-500';
-    return 'text-green-500';
+    if (usage > 1) return 'text-red-400';
+    if (usage > 0.8) return 'text-amber-400';
+    return 'text-emerald-400';
   };
 
+  const getUsagePercentage = (limit: number) => Math.min(100, (stats.tokenCount / limit) * 100);
+
   return (
-    <div className="w-full bg-zinc-800/30 border border-zinc-700/50 rounded-xl p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div className="w-full flex flex-col gap-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-white/5">
         <div>
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            Merge Complete
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            Ready to use
           </h2>
-          <div className="flex flex-wrap gap-4 mt-2 text-sm text-zinc-400">
-            <div className="flex flex-col">
-              <span className="text-zinc-500 text-xs uppercase tracking-wider">Files</span>
-              <span className="text-zinc-200 font-mono">{stats.files}</span>
-            </div>
-            <div className="w-px h-8 bg-zinc-700/50 hidden sm:block"></div>
-            <div className="flex flex-col">
-              <span className="text-zinc-500 text-xs uppercase tracking-wider">Size</span>
-              <span className="text-zinc-200 font-mono">{formatSize(stats.size)}</span>
-            </div>
-            <div className="w-px h-8 bg-zinc-700/50 hidden sm:block"></div>
-            <div className="flex flex-col">
-              <span className="text-zinc-500 text-xs uppercase tracking-wider">Est. Tokens</span>
-              <span className="text-zinc-200 font-mono">{formatTokens(stats.tokenCount)}</span>
-            </div>
-          </div>
+          <p className="text-zinc-400 text-sm mt-1 ml-6">Generated successfully in {format === 'markdown' ? 'Markdown' : format === 'xml' ? 'XML' : 'Text'} format.</p>
         </div>
         
-        <div className="flex gap-2 w-full md:w-auto">
-          <Button variant="secondary" onClick={onReset} className="flex-1 md:flex-none">
-            New Repo
-          </Button>
+        <Button variant="outline" onClick={onReset} className="text-xs px-4 py-2 border-dashed">
+          Processed another repo
+        </Button>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-black/30 rounded-xl p-4 border border-zinc-800/50 flex flex-col items-center justify-center text-center">
+          <span className="text-zinc-500 text-xs uppercase tracking-wider font-bold mb-1">Files</span>
+          <span className="text-2xl font-mono text-white font-semibold">{stats.files}</span>
+        </div>
+        <div className="bg-black/30 rounded-xl p-4 border border-zinc-800/50 flex flex-col items-center justify-center text-center">
+          <span className="text-zinc-500 text-xs uppercase tracking-wider font-bold mb-1">Total Size</span>
+          <span className="text-2xl font-mono text-white font-semibold">{formatSize(stats.size)}</span>
+        </div>
+        <div className="bg-black/30 rounded-xl p-4 border border-zinc-800/50 flex flex-col items-center justify-center text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-indigo-500/5"></div>
+          <span className="text-indigo-400 text-xs uppercase tracking-wider font-bold mb-1 relative">Est. Tokens</span>
+          <span className="text-2xl font-mono text-indigo-100 font-semibold relative">{formatTokens(stats.tokenCount)}</span>
         </div>
       </div>
 
-      {/* Context Window Indicators */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-800">
-           <div className="flex justify-between items-center mb-1">
-             <span className="text-xs text-zinc-500">GPT-4 Turbo (128k)</span>
-             <span className={`text-xs font-bold ${getContextColor(gpt4Context)}`}>
-               {Math.round((stats.tokenCount / gpt4Context) * 100)}%
+      {/* Context Usage Bars */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-800/50">
+           <div className="flex justify-between items-center mb-2">
+             <div className="flex items-center gap-2">
+               <div className="w-2 h-2 rounded-full bg-green-500"></div>
+               <span className="text-xs font-semibold text-zinc-300">GPT-4 Turbo</span>
+             </div>
+             <span className={`text-xs font-mono font-bold ${getContextColor(gpt4Context)}`}>
+               {Math.round(getUsagePercentage(gpt4Context))}%
              </span>
            </div>
-           <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-             <div className={`h-full rounded-full ${getContextColor(gpt4Context).replace('text-', 'bg-')}`} style={{ width: `${Math.min(100, (stats.tokenCount / gpt4Context) * 100)}%` }}></div>
+           <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/5">
+             <div 
+                className={`h-full rounded-full transition-all duration-1000 ${getContextColor(gpt4Context).replace('text-', 'bg-')}`} 
+                style={{ width: `${getUsagePercentage(gpt4Context)}%` }}
+             ></div>
            </div>
+           <div className="mt-1 text-[10px] text-zinc-600 text-right">Limit: 128k tokens</div>
         </div>
-        <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-800">
-           <div className="flex justify-between items-center mb-1">
-             <span className="text-xs text-zinc-500">Claude 3.5 (200k)</span>
-             <span className={`text-xs font-bold ${getContextColor(claudeContext)}`}>
-               {Math.round((stats.tokenCount / claudeContext) * 100)}%
+
+        <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-800/50">
+           <div className="flex justify-between items-center mb-2">
+             <div className="flex items-center gap-2">
+               <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+               <span className="text-xs font-semibold text-zinc-300">Claude 3.5</span>
+             </div>
+             <span className={`text-xs font-mono font-bold ${getContextColor(claudeContext)}`}>
+               {Math.round(getUsagePercentage(claudeContext))}%
              </span>
            </div>
-           <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-             <div className={`h-full rounded-full ${getContextColor(claudeContext).replace('text-', 'bg-')}`} style={{ width: `${Math.min(100, (stats.tokenCount / claudeContext) * 100)}%` }}></div>
+           <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/5">
+             <div 
+                className={`h-full rounded-full transition-all duration-1000 ${getContextColor(claudeContext).replace('text-', 'bg-')}`} 
+                style={{ width: `${getUsagePercentage(claudeContext)}%` }}
+             ></div>
            </div>
+           <div className="mt-1 text-[10px] text-zinc-600 text-right">Limit: 200k tokens</div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <Button onClick={handleDownload} className="w-full py-3">
-           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      {/* Actions */}
+      <div className="flex flex-col gap-3 mt-2">
+        <Button onClick={handleDownload} className="w-full py-4 text-lg shadow-xl shadow-indigo-500/20">
+           <svg className="w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
            </svg>
-           Download .txt
+           Download File
         </Button>
         
-        <Button variant="outline" onClick={handleCopy} className="w-full py-3">
+        <Button variant="secondary" onClick={handleCopy} className="w-full py-3 bg-zinc-800/80 hover:bg-zinc-700/80">
           {copied ? (
             <>
-              <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              Copied!
+              <span className="text-emerald-400">Copied to Clipboard!</span>
             </>
           ) : (
              <>
                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                </svg>
-               Copy to Clipboard
+               Copy Content
              </>
           )}
         </Button>
       </div>
 
-      {/* Preview Snippet */}
-      <div className="mt-6">
-        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 block">Preview (First 500 chars)</label>
-        <div className="bg-black/50 rounded-lg p-4 font-mono text-xs text-zinc-400 border border-zinc-800 overflow-hidden relative">
-          <pre className="whitespace-pre-wrap break-all">
-            {stats.content.slice(0, 500)}...
+      {/* Preview */}
+      <div className="mt-4 group">
+        <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 block group-hover:text-zinc-300 transition-colors">File Preview</label>
+        <div className="bg-black/60 rounded-xl p-4 font-mono text-xs text-zinc-400 border border-zinc-800 overflow-hidden relative shadow-inner h-32">
+          <pre className="whitespace-pre-wrap break-all opacity-70">
+            {stats.content.slice(0, 800)}...
           </pre>
-          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/90 to-transparent pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black pointer-events-none"></div>
         </div>
       </div>
     </div>

@@ -31,7 +31,7 @@ export interface FileContent {
 export type OutputFormat = 'plain' | 'markdown' | 'xml';
 
 export interface ProcessState {
-  status: 'idle' | 'fetching_tree' | 'filtering' | 'downloading' | 'merging' | 'completed' | 'error';
+  status: 'idle' | 'fetching_tree' | 'selecting' | 'downloading' | 'merging' | 'completed' | 'error';
   totalFiles: number;
   processedFiles: number;
   currentFile: string;
@@ -39,6 +39,7 @@ export interface ProcessState {
   result: string | null;
   resultSize: number;
   tokenCount: number;
+  tree: GitHubTreeItem[];
 }
 
 export enum FileType {
