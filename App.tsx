@@ -14,10 +14,9 @@ const App: React.FC = () => {
   const [branch, setBranch] = useState('');
   const [token, setToken] = useState('');
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('markdown');
-  const [maxFileSize, setMaxFileSize] = useState<number>(100); // KB
+  const [maxFileSize, setMaxFileSize] = useState<number>(100);
   const [customIgnores, setCustomIgnores] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-
   const [fetchedRepoInfo, setFetchedRepoInfo] = useState<{name: string, branch: string} | null>(null);
 
   const [processState, setProcessState] = useState<ProcessState>({
@@ -40,11 +39,8 @@ const App: React.FC = () => {
   const handleTokenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVal = e.target.value;
     setToken(newVal);
-    if (newVal) {
-      localStorage.setItem('gh_token', newVal);
-    } else {
-      localStorage.removeItem('gh_token');
-    }
+    if (newVal) localStorage.setItem('gh_token', newVal);
+    else localStorage.removeItem('gh_token');
   };
 
   const handleFetchTree = async (e: React.FormEvent) => {
@@ -55,7 +51,7 @@ const App: React.FC = () => {
       status: 'fetching_tree',
       totalFiles: 0,
       processedFiles: 0,
-      currentFile: 'Scanning repository structure...',
+      currentFile: 'Analyzing repository structure...',
       error: null,
       result: null,
       resultSize: 0,
@@ -72,9 +68,7 @@ const App: React.FC = () => {
         customIgnores: customIgnores.split(',').map(s => s.trim()).filter(Boolean)
       });
 
-      if (tree.length === 0) {
-        throw new Error("No files found. Check your ignore settings or repo is empty.");
-      }
+      if (tree.length === 0) throw new Error("No files found. Check your filters.");
 
       setFetchedRepoInfo({ name: repoName, branch: foundBranch });
       addToHistory(repoName);
@@ -90,14 +84,13 @@ const App: React.FC = () => {
       setProcessState(prev => ({
         ...prev,
         status: 'error',
-        error: err instanceof Error ? err.message : 'An unknown error occurred'
+        error: err instanceof Error ? err.message : 'Connection error'
       }));
     }
   };
 
   const handleMergeSelection = async (selectedPaths: string[]) => {
     if (!fetchedRepoInfo) return;
-
     const selectedFiles = processState.tree.filter(f => selectedPaths.includes(f.path));
 
     setProcessState(prev => ({
@@ -136,54 +129,40 @@ const App: React.FC = () => {
        setProcessState(prev => ({
         ...prev,
         status: 'error',
-        error: err instanceof Error ? err.message : 'Error downloading content'
+        error: err instanceof Error ? err.message : 'Download failed'
       }));
     }
   };
 
   const reset = () => {
     setProcessState({
-      status: 'idle',
-      totalFiles: 0,
-      processedFiles: 0,
-      currentFile: '',
-      error: null,
-      result: null,
-      resultSize: 0,
-      tokenCount: 0,
-      tree: []
+      status: 'idle', totalFiles: 0, processedFiles: 0, currentFile: '',
+      error: null, result: null, resultSize: 0, tokenCount: 0, tree: []
     });
     setFetchedRepoInfo(null);
   };
 
   const isProcessing = ['fetching_tree', 'downloading', 'merging'].includes(processState.status);
 
-  const getFormatLabel = (fmt: OutputFormat) => {
-    switch (fmt) {
-      case 'plain': return 'Text';
-      case 'markdown': return 'Markdown';
-      case 'xml': return 'XML';
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#050507] text-zinc-100 flex flex-col items-center py-8 md:py-16 px-4 relative overflow-x-hidden selection:bg-indigo-500/40 selection:text-white">
+    <div className="min-h-screen bg-[#050507] text-zinc-100 flex flex-col items-center py-6 md:py-20 px-4 relative overflow-x-hidden selection:bg-indigo-500/30">
       
-      {/* BACKGROUND EFFECTS */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[100vw] h-[100vw] bg-indigo-900/10 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[100vw] h-[100vw] bg-violet-900/10 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] md:bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
+      {/* ULTRA PREM BACKGROUND */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[60vw] h-[60vw] bg-indigo-600/10 rounded-full blur-[120px] opacity-40 animate-pulse"></div>
+        <div className="absolute bottom-0 right-1/4 w-[50vw] h-[50vw] bg-violet-600/10 rounded-full blur-[120px] opacity-30"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
       </div>
 
-      <div className="w-full max-w-3xl space-y-8 md:space-y-12 relative z-10">
+      <div className="w-full max-w-4xl space-y-12 relative z-10">
         <Header />
 
-        {/* MAIN CONTAINER */}
-        <div className="bg-[#0c0c0e]/60 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] p-5 sm:p-8 md:p-12 shadow-[0_30px_100px_rgba(0,0,0,0.5)] relative ring-1 ring-white/5 overflow-hidden">
+        {/* MAIN CONTAINER: Glassmorphism Card */}
+        <div className="bg-[#0d0d10]/40 backdrop-blur-2xl border border-white/5 rounded-[2rem] md:rounded-[3rem] p-6 sm:p-10 md:p-16 shadow-[0_40px_120px_rgba(0,0,0,0.6)] relative overflow-hidden group/container">
           
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent"></div>
-          
+          {/* Internal Glow Effect */}
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/10 blur-[60px] rounded-full group-hover/container:bg-indigo-500/20 transition-all duration-1000"></div>
+
           {processState.status === 'completed' && processState.result ? (
             <ResultCard 
               stats={{
@@ -202,10 +181,10 @@ const App: React.FC = () => {
                 onCancel={reset}
              />
           ) : (
-            <form onSubmit={handleFetchTree} className="space-y-8">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div className="sm:col-span-3">
+            <form onSubmit={handleFetchTree} className="space-y-10">
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="md:col-span-3">
                     <Input
                       label="Repository URL"
                       placeholder="https://github.com/owner/repository"
@@ -215,7 +194,7 @@ const App: React.FC = () => {
                       required
                     />
                   </div>
-                  <div className="sm:col-span-1">
+                  <div className="md:col-span-1">
                     <Input
                       label="Branch"
                       placeholder="main"
@@ -226,9 +205,9 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                   <label className="text-[10px] md:text-xs font-bold text-zinc-500 pl-1 uppercase tracking-widest mb-3 block">Format</label>
-                   <div className="grid grid-cols-3 gap-2 p-1.5 bg-black/40 rounded-2xl border border-zinc-800/50 shadow-inner">
+                <div className="space-y-4">
+                   <label className="text-[10px] md:text-xs font-bold text-zinc-500 pl-1 uppercase tracking-[0.3em]">Select Export Mode</label>
+                   <div className="grid grid-cols-3 gap-3 p-1.5 bg-black/40 rounded-[1.5rem] border border-white/5">
                       {(['markdown', 'plain', 'xml'] as OutputFormat[]).map((fmt) => (
                         <button
                           key={fmt}
@@ -236,88 +215,81 @@ const App: React.FC = () => {
                           onClick={() => setOutputFormat(fmt)}
                           disabled={isProcessing}
                           className={`
-                            py-2 px-1 md:px-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-500 relative overflow-hidden
+                            py-3 px-2 rounded-2xl text-[10px] md:text-xs font-black transition-all duration-500 uppercase tracking-widest
                             ${outputFormat === fmt 
-                              ? 'bg-zinc-800 text-white shadow-xl ring-1 ring-white/10' 
-                              : 'text-zinc-500 hover:text-zinc-300'}
+                              ? 'bg-zinc-800 text-white shadow-2xl ring-1 ring-white/10 scale-[1.02]' 
+                              : 'text-zinc-600 hover:text-zinc-400'}
                           `}
                         >
-                          {outputFormat === fmt && (
-                            <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 to-transparent"></div>
-                          )}
-                          <span className="relative z-10">{getFormatLabel(fmt)}</span>
+                          {fmt === 'plain' ? 'Text' : fmt}
                         </button>
                       ))}
                    </div>
                 </div>
                 
-                <div className="pt-2">
-                  <Input
-                    label={
-                      <div className="flex justify-between items-center w-full">
-                        <span>API Token (Optional)</span>
-                        <a 
-                          href="https://github.com/settings/tokens/new" 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
-                        >
-                          GET TOKEN <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" strokeWidth={3} /></svg>
-                        </a>
-                      </div>
-                    }
-                    placeholder="ghp_xxxxxxxxxxxx"
-                    type="password"
-                    value={token}
-                    onChange={handleTokenChange}
-                    disabled={isProcessing}
-                  />
-                </div>
+                <Input
+                  label={
+                    <div className="flex justify-between items-center w-full">
+                      <span>Personal Access Token</span>
+                      <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 normal-case text-[9px]">
+                        GENERATE <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" strokeWidth={3} /></svg>
+                      </a>
+                    </div>
+                  }
+                  placeholder="ghp_xxxxxxxxxxxx"
+                  type="password"
+                  value={token}
+                  onChange={handleTokenChange}
+                  disabled={isProcessing}
+                  helperText="Avoids rate limits. Recommended for private repos."
+                />
 
-                <div className="pt-2">
+                <div>
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="flex items-center gap-2 text-[10px] font-black text-zinc-500 hover:text-zinc-300 transition-all tracking-widest"
+                    className="flex items-center gap-2.5 text-[10px] font-bold text-zinc-500 hover:text-indigo-400 transition-all tracking-widest uppercase"
                   >
-                    <div className={`w-4 h-4 rounded-sm flex items-center justify-center transition-all ${showAdvanced ? 'bg-indigo-500 text-white' : 'bg-zinc-800'}`}>
-                      <svg className={`w-2.5 h-2.5 transition-transform duration-300 ${showAdvanced ? '' : '-rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path d="M19 9l-7 7-7-7" /></svg>
+                    <div className={`w-5 h-5 rounded-lg flex items-center justify-center transition-all ${showAdvanced ? 'bg-indigo-500 text-white' : 'bg-zinc-900 border border-white/5'}`}>
+                      <svg className={`w-3 h-3 transition-transform duration-500 ${showAdvanced ? '' : '-rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path d="M19 9l-7 7-7-7" /></svg>
                     </div>
-                    ADVANCED CONFIG
+                    Engine Settings
                   </button>
 
                   {showAdvanced && (
-                    <div className="mt-4 p-5 bg-black/40 rounded-xl border border-white/5 space-y-6 animate-in slide-in-from-top-2 duration-300">
+                    <div className="mt-6 p-8 bg-black/40 rounded-3xl border border-white/5 space-y-8 animate-in slide-in-from-top-4 duration-500">
                       <div>
-                        <div className="flex justify-between mb-3 text-[10px] uppercase font-bold tracking-widest text-zinc-400">
-                          <span>Max File Size</span>
+                        <div className="flex justify-between mb-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">
+                          <span>Max Individual File Size</span>
                           <span className="text-indigo-400">{maxFileSize} KB</span>
                         </div>
                         <input 
                           type="range" min="10" max="1000" step="10" value={maxFileSize}
                           onChange={(e) => setMaxFileSize(Number(e.target.value))}
-                          className="w-full h-1 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400"
+                          className="w-full h-1.5 bg-zinc-900 rounded-full appearance-none cursor-pointer accent-indigo-500"
                         />
                       </div>
-                      <Input label="Ignore Patterns" placeholder="tests/, docs/, *.md" value={customIgnores} onChange={(e) => setCustomIgnores(e.target.value)} />
+                      <Input label="Custom Ignore Patterns" placeholder="tests/, docs/, *.md, legacy/" value={customIgnores} onChange={(e) => setCustomIgnores(e.target.value)} />
                     </div>
                   )}
                 </div>
               </div>
 
               {processState.status === 'error' && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs md:text-sm text-red-300 flex items-start gap-3 animate-shake">
-                  <svg className="w-5 h-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  <span>{processState.error}</span>
+                <div className="p-5 bg-red-500/5 border border-red-500/20 rounded-2xl text-xs md:text-sm text-red-400 flex items-center gap-4 animate-shake">
+                  <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  </div>
+                  <span className="font-medium">{processState.error}</span>
                 </div>
               )}
 
               {isProcessing ? (
                 <ProgressBar progress={processState.processedFiles} total={processState.totalFiles || 100} currentFile={processState.currentFile} />
               ) : (
-                <div className="space-y-6">
-                  <Button type="submit" className="w-full py-4 text-lg" isLoading={isProcessing}>
-                    SCAN & PREPARE
+                <div className="space-y-10">
+                  <Button type="submit" className="w-full h-16 text-lg md:text-xl" isLoading={isProcessing}>
+                    Scan Repository
                   </Button>
                   {processState.status === 'idle' && <History onSelect={(repo) => setRepoUrl(`https://github.com/${repo}`)} />}
                 </div>
@@ -326,9 +298,9 @@ const App: React.FC = () => {
           )}
         </div>
 
-        <div className="text-center opacity-40 hover:opacity-100 transition-opacity duration-700">
-           <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em]">
-             Local Browser Engine • No Data Collection
+        <div className="text-center pt-4">
+           <p className="text-[9px] md:text-[10px] text-zinc-600 font-black uppercase tracking-[0.5em] opacity-50 hover:opacity-100 transition-opacity duration-1000">
+             Privacy Secured • 100% Client-Side • Next-Gen Engine
            </p>
         </div>
       </div>
@@ -336,10 +308,21 @@ const App: React.FC = () => {
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-4px); }
-          75% { transform: translateX(4px); }
+          25% { transform: translateX(-6px); }
+          75% { transform: translateX(6px); }
         }
-        .animate-shake { animation: shake 0.4s ease-in-out; }
+        .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        
+        input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: #6366f1;
+          cursor: pointer;
+          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+          border: 3px solid #000;
+        }
       `}</style>
     </div>
   );

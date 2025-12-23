@@ -4,30 +4,31 @@ export const Header: React.FC = () => {
   const [logoError, setLogoError] = useState(false);
 
   return (
-    <header className="mb-8 md:mb-12 text-center animate-in slide-in-from-top-4 duration-500 relative z-10 px-2">
-      <div className="flex flex-col items-center justify-center gap-4 mb-6 group">
+    <header className="mb-10 md:mb-16 text-center relative z-10 px-4 pt-4 md:pt-0 animate-in fade-in duration-1000">
+      <div className="flex flex-col items-center justify-center gap-6 group">
         <div className="relative">
-          <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+          {/* Subtle glow behind logo */}
+          <div className="absolute inset-0 bg-indigo-500/30 blur-[40px] rounded-full opacity-50 group-hover:opacity-100 transition-opacity duration-1000"></div>
+          
           {!logoError ? (
             <img 
               src="assets/logo.png" 
               alt="RepoContext Logo" 
-              className="relative h-20 md:h-28 w-auto object-contain drop-shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:scale-110 transition-transform duration-500 ease-out"
+              className="relative h-20 md:h-32 w-auto object-contain drop-shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:scale-105 transition-transform duration-700"
               onError={() => setLogoError(true)}
             />
           ) : (
-            /* High-Fidelity SVG Fallback */
-            <div className="w-20 h-20 md:w-24 md:h-24 relative hover:scale-110 transition-transform duration-500 ease-out">
-               <div className="absolute inset-0 bg-indigo-500/30 blur-2xl rounded-full"></div>
-               <svg className="w-full h-full drop-shadow-xl relative z-10" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                 <rect width="100" height="100" rx="24" fill="url(#brand_grad)" />
-                 <path d="M62 28V72" stroke="white" strokeWidth="7" strokeLinecap="round" />
-                 <path d="M42 28L42 48C42 58 52 58 62 58" stroke="white" strokeWidth="7" strokeLinecap="round" />
-                 <circle cx="42" cy="28" r="6" fill="white" />
-                 <circle cx="62" cy="28" r="6" fill="white" />
-                 <circle cx="62" cy="72" r="6" fill="white" />
+            /* Premium SVG Fallback: A stylized '1' integrated with Git branch nodes */
+            <div className="w-20 h-20 md:w-28 md:h-28 relative hover:rotate-3 transition-transform duration-500">
+               <svg className="w-full h-full drop-shadow-2xl" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                 <rect width="100" height="100" rx="28" fill="url(#logo_grad)" />
+                 <path d="M65 30V70" stroke="white" strokeWidth="6" strokeLinecap="round" />
+                 <path d="M40 30L40 50C40 60 50 60 65 60" stroke="white" strokeWidth="6" strokeLinecap="round" />
+                 <circle cx="40" cy="30" r="7" fill="white" />
+                 <circle cx="65" cy="30" r="7" fill="white" />
+                 <circle cx="65" cy="70" r="7" fill="white" />
                  <defs>
-                   <linearGradient id="brand_grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                   <linearGradient id="logo_grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
                      <stop stopColor="#6366F1" />
                      <stop offset="1" stopColor="#A855F7" />
                    </linearGradient>
@@ -37,28 +38,24 @@ export const Header: React.FC = () => {
           )}
         </div>
         
-        <div className="flex flex-col items-center">
-          {/* Responsive title: text-4xl on mobile, text-6xl on desktop */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-indigo-100 to-zinc-500 tracking-tighter drop-shadow-sm leading-tight">
-            RepoContext
+        <div className="flex flex-col items-center max-w-full">
+          {/* Responsive title: starts small and scales up, ensuring it fits on 320px screens */}
+          <h1 className="text-[2.5rem] leading-[0.9] sm:text-5xl md:text-7xl lg:text-8xl font-black text-white tracking-tighter drop-shadow-2xl">
+            <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-500">Repo</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 to-violet-400">Context</span>
           </h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="h-px w-4 bg-indigo-500/50"></span>
-            <span className="text-[10px] md:text-xs font-mono text-indigo-400 tracking-[0.3em] uppercase opacity-90">Developer Edition</span>
-            <span className="h-px w-4 bg-indigo-500/50"></span>
+          
+          <div className="flex items-center gap-3 mt-4">
+            <div className="h-px w-8 md:w-16 bg-gradient-to-r from-transparent to-indigo-500/50"></div>
+            <span className="text-[9px] md:text-xs font-mono text-indigo-400 tracking-[0.4em] uppercase font-bold">Pro Context Generator</span>
+            <div className="h-px w-8 md:w-16 bg-gradient-to-l from-transparent to-indigo-500/50"></div>
           </div>
         </div>
       </div>
       
-      <p className="text-zinc-400 text-sm md:text-lg max-w-lg mx-auto leading-relaxed font-light px-4">
-        Turn any GitHub repository into a single <span className="text-indigo-400 font-semibold glow-text">context-rich</span> file. Optimized for top-tier LLMs.
+      <p className="mt-8 text-zinc-400 text-sm md:text-xl max-w-xl mx-auto leading-relaxed font-light px-4 opacity-80">
+        Turn any GitHub repository into a single <span className="text-white font-medium border-b border-indigo-500/40">context-rich</span> file. Optimized for ChatGPT, Claude & Gemini.
       </p>
-      
-      <style>{`
-        .glow-text {
-          text-shadow: 0 0 15px rgba(129, 140, 248, 0.4);
-        }
-      `}</style>
     </header>
   );
 };
