@@ -1,3 +1,4 @@
+
 export interface GitHubRepo {
   name: string;
   full_name: string;
@@ -22,13 +23,9 @@ export interface GitHubTreeResponse {
   truncated: boolean;
 }
 
-export interface FileContent {
-  path: string;
-  content: string;
-  size: number;
-}
-
 export type OutputFormat = 'plain' | 'markdown' | 'xml';
+
+export type AIStrategy = 'none' | 'refactor' | 'debug' | 'explain' | 'security' | 'custom';
 
 export interface ProcessState {
   status: 'idle' | 'fetching_tree' | 'selecting' | 'downloading' | 'merging' | 'completed' | 'error';
@@ -40,10 +37,4 @@ export interface ProcessState {
   resultSize: number;
   tokenCount: number;
   tree: GitHubTreeItem[];
-}
-
-export enum FileType {
-  TEXT,
-  BINARY,
-  IGNORED
 }
