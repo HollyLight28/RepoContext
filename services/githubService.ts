@@ -115,7 +115,11 @@ const formatFileContent = (path: string, content: string, format: OutputFormat):
 };
 
 export const fetchRepoStructure = async ({ repoUrl, branch, token, maxFileSizeKB, customIgnores }: any) => {
-  const cleanUrl = repoUrl.replace('https://github.com/', '').replace(/\/$/, '');
+  const cleanUrl = repoUrl
+    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
+    .replace(/\/$/, '')
+    .replace(/\.git$/, '');
+
   const [owner, repo] = cleanUrl.split('/');
   const service = new GitHubService(token);
   const repoInfo = await service.getRepoDetails(owner, repo);

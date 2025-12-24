@@ -120,7 +120,8 @@ const App: React.FC = () => {
   const handleFetchTree = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repoUrl.trim()) return;
-    setProcessState({ ...processState, status: 'fetching_tree', currentFile: 'Analyzing repository...' });
+    // Reset error state before starting new fetch
+    setProcessState({ ...processState, status: 'fetching_tree', error: null, currentFile: 'Analyzing repository...' });
     try {
       const { tree, branch: fb, repoName } = await fetchRepoStructure({ repoUrl, branch, token, maxFileSizeKB: maxFileSize, customIgnores: customIgnores.split(',') });
       setFetchedRepoInfo({ name: repoName, branch: fb });
@@ -170,6 +171,23 @@ const App: React.FC = () => {
             <FileTree files={processState.tree} onConfirm={handleMergeSelection} onCancel={reset} />
           ) : (
             <form onSubmit={handleFetchTree} className="space-y-20">
+              {processState.status === 'error' && processState.error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 flex items-start gap-4 mb-8">
+                   <div className="p-2 bg-red-500/20 rounded-full shrink-0">
+                     <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                     </svg>
+                   </div>
+                   <div>
+                     <h4 className="text-red-400 font-bold uppercase tracking-wider text-xs mb-1">Analysis Failed</h4>
+                     <p className="text-red-200/80 text-sm leading-relaxed">{processState.error}</p>
+                     {processState.error.includes('403') && (
+                       <p className="text-red-300/60 text-xs mt-2 font-mono">Tip: API rate limit exceeded. Add a personal access token to continue.</p>
+                     )}
+                   </div>
+                </div>
+              )}
+
               {/* Section 01: Source */}
               <section className="relative">
                 {/* Fixed positioning for number - moved right (-left-6 instead of -left-24) to be near the dash */}
