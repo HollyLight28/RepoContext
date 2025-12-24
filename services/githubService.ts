@@ -54,23 +54,52 @@ Provide a "Prioritized Vulnerability Stack". Rank by "Exploitability" vs "Busine
 
 export class GitHubService {
   private token: string | null = null;
-  constructor(token?: string) { this.token = token || null; }
+  
+  constructor(token?: string) { 
+    // CRITICAL FIX: Trim whitespace which causes 404s/Auth errors
+    this.token = token?.trim() || null; 
+  }
 
   private getHeaders(): HeadersInit {
-    const headers: HeadersInit = { 'Accept': 'application/vnd.github.v3+json' };
-    if (this.token) headers['Authorization'] = `token ${this.token}`;
+    const headers: HeadersInit = { 
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    if (this.token) {
+      // Supports both Classic (ghp_) and Fine-grained (github_pat_) tokens
+      headers['Authorization'] = `token ${this.token}`;
+    }
     return headers;
   }
 
   async getRepoDetails(owner: string, repo: string) {
     const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}`, { headers: this.getHeaders() });
-    if (!response.ok) throw new Error(`Repo error: ${response.status}`);
+    
+    if (!response.ok) {
+        if (response.status === 404) {
+            // Detailed error diagnosis for the user
+            if (this.token) {
+               throw new Error(`Access Denied (404). Either the URL is invalid, or your Token is missing the 'repo' scope (required for private repos).`);
+            } else {
+               throw new Error(`Repository not found (404). If this is a private repo, you MUST provide a Token with 'repo' scope.`);
+            }
+        }
+        if (response.status === 403) {
+           throw new Error(`API Rate Limit Exceeded (403). Check your token validity.`);
+        }
+        if (response.status === 401) {
+           throw new Error(`Authentication Failed (401). Your token is invalid or expired.`);
+        }
+        throw new Error(`GitHub API Error: ${response.status}`);
+    }
     return response.json();
   }
 
   async getRepoTree(owner: string, repo: string, branch: string): Promise<GitHubTreeItem[]> {
     const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers: this.getHeaders() });
-    if (!response.ok) throw new Error('Failed to fetch tree');
+    if (!response.ok) {
+       if (response.status === 404) throw new Error("Branch not found. Check if the branch name is correct.");
+       throw new Error('Failed to fetch file tree structure.');
+    }
     const data = await response.json();
     return data.tree;
   }
@@ -115,16 +144,34 @@ const formatFileContent = (path: string, content: string, format: OutputFormat):
 };
 
 export const fetchRepoStructure = async ({ repoUrl, branch, token, maxFileSizeKB, customIgnores }: any) => {
+  // Robust URL cleaner
   const cleanUrl = repoUrl
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
-    .replace(/\/$/, '')
-    .replace(/\.git$/, '');
+    .trim()
+    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '') // Remove domain
+    .replace(/\.git$/, '') // Remove .git extension
+    .split('/tree/')[0] // Remove /tree/branch part if user pasted full branch url
+    .split('/blob/')[0] // Remove /blob/file part
+    .replace(/\/$/, ''); // Remove trailing slash
 
-  const [owner, repo] = cleanUrl.split('/');
+  // We only take the first two parts: owner and repo.
+  // This ignores extra paths if the regex didn't catch them.
+  const parts = cleanUrl.split('/');
+  if (parts.length < 2) {
+      throw new Error("Invalid GitHub URL format. Use: owner/repo");
+  }
+  const owner = parts[0];
+  const repo = parts[1];
+
+  // Token is trimmed inside the class constructor
   const service = new GitHubService(token);
   const repoInfo = await service.getRepoDetails(owner, repo);
   const targetBranch = branch || repoInfo.default_branch;
   const rawTree = await service.getRepoTree(owner, repo, targetBranch);
+  
+  if (!rawTree || !Array.isArray(rawTree)) {
+      throw new Error("Empty or invalid repository structure returned.");
+  }
+
   const filteredTree = rawTree.filter(item => item.type === 'blob' && !service.isIgnored(item.path, customIgnores) && (!item.size || item.size < maxFileSizeKB * 1024));
   return { tree: filteredTree, branch: targetBranch, repoName: `${owner}/${repo}` };
 };

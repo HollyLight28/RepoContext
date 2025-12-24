@@ -45,15 +45,16 @@ export const Header: React.FC = () => {
           
           <div className="flex items-center gap-4 mt-6">
             <div className="h-px w-10 bg-indigo-500/30"></div>
-            <span className="text-[10px] md:text-xs font-bold text-zinc-500 tracking-[0.4em] uppercase">INTELLIGENT REPOSITORY SERIALIZATION</span>
+            <span className="text-[10px] md:text-xs font-bold text-zinc-500 tracking-[0.4em] uppercase">REPOSITORY SERIALIZATION PROTOCOL</span>
             <div className="h-px w-10 bg-indigo-500/30"></div>
           </div>
         </div>
       </div>
       
-      <p className="mt-10 text-zinc-400 text-base md:text-xl max-w-2xl mx-auto leading-relaxed font-light px-6 opacity-70">
-        Transform your entire repository into a single, token-optimized artifact. <br className="hidden md:block" />
-        <span className="text-zinc-300 font-medium">The missing bridge between complex source code and high-precision AI reasoning.</span>
+      <p className="mt-10 text-zinc-400 text-base md:text-xl max-w-2xl mx-auto leading-relaxed font-light px-6 opacity-80">
+        Ingest your entire GitHub repository and compile it into a <span className="text-indigo-200 font-medium">single, token-optimized master file</span>.
+        <br className="hidden md:block" />
+        <span className="text-zinc-500 block mt-2 text-sm uppercase tracking-widest font-medium">The definitive bridge between codebase and LLM.</span>
       </p>
     </header>
   );
