@@ -12,47 +12,86 @@ import { fetchRepoStructure, generateMergedContent } from './services/githubServ
 
 const STRATEGY_DETAILS: Record<AIStrategy, { label: string, tag: string, desc: string, prompt: string }> = {
   none: { 
-    label: 'VANILLA', 
-    tag: 'RAW_SOURCE',
-    desc: 'No AI instrumentation. Provides pure, unmodified source code context for manual processing.',
+    label: 'Standard source', 
+    tag: 'Raw content',
+    desc: 'No AI instrumentation. Provides unmodified source code context for manual processing.',
     prompt: '' 
   },
   refactor: { 
-    label: 'ARCHITECT', 
-    tag: 'STRUCTURAL_AUDIT',
-    desc: 'Deep structural analysis and refactoring using SOLID, DRY, and specialized design patterns.',
-    prompt: '### ROLE: Principal Software Architect & Systems Designer\n### CONTEXT: You are performing a high-stakes architectural audit of a mission-critical codebase. \n### TASK: \n1. ANALYZE the global dependency graph and identify tightly coupled modules.\n2. IDENTIFY violations of SOLID, DRY, and KISS principles.\n3. PROPOSE a migration strategy for technical debt reduction.\n4. SUGGEST performance optimizations regarding time/space complexity.\n### CONSTRAINTS: \n- Prioritize maintainability over clever "one-liners".\n- Maintain backward compatibility where applicable.\n- Use Chain-of-Thought reasoning before suggesting specific code changes.'
+    label: 'Architectural audit', 
+    tag: 'Structural',
+    desc: 'God-tier structural analysis using SOLID, DRY, and Principal-level design pattern optimization.',
+    prompt: `### ROLE: Principal Systems Architect & Software Strategist
+### OBJECTIVE: Perform a "First Principles" architectural teardown and reconstruction blueprint.
+### ANALYSIS PROTOCOLS:
+1. **DE-COUPLING MATRIX**: Map the global dependency graph. Identify "Entropy Hotspots" where temporal coupling or hidden state is leaking between domains.
+2. **ABSTRACTION FIDELITY**: Audit the boundary between business logic and infrastructure. Detect "Leaky Abstractions" and "Anemic Domain Models".
+3. **PRINCIPLE ENFORCEMENT**: Critique the implementation against SOLID, KISS, and the "Law of Demeter". Quantify the "Cognitive Load" of critical paths.
+4. **REFACTORING ROADMAP**: Design a phased "Strangler Fig" or "Abstraction Bridge" strategy to migrate technical debt.
+5. **SYSTEM STABILITY**: Evaluate the "Fragility" vs "Antifragility" of the codebase under extreme scaling or changing requirements.
+### CONSTRAINTS:
+- Use "Chain-of-Thought" (CoT) reasoning for every structural recommendation.
+- Prioritize "Composition over Inheritance" and "Data-Driven Design".
+- Provide "Gold Standard" code examples for the suggested target state.`
   },
   debug: { 
-    label: 'BUG_HUNTER', 
-    tag: 'VERIFICATION',
-    desc: 'Formal verification mindset to identify race conditions, memory leaks, and logical edge cases.',
-    prompt: '### ROLE: Senior Systems Engineer & Formal Verification Specialist\n### CONTEXT: You are scanning a codebase for non-obvious failure modes in a high-concurrency environment.\n### TASK:\n1. EXECUTE a mental execution trace to find potential race conditions or deadlocks.\n2. AUDIT memory management and resource cleanup paths.\n3. SCAN for logical edge cases in complex conditional branches.\n4. IDENTIFY potential regressions in the current implementation.\n### METHODOLOGY:\nUse a "Failure Mode and Effects Analysis" (FMEA) approach. For every identified risk, provide an impact score and a robust mitigation strategy.'
+    label: 'Logic debugger', 
+    tag: 'Verification',
+    desc: 'Formal verification mindset to identify race conditions, memory leaks, and complex logic flaws.',
+    prompt: `### ROLE: Senior Systems Engineer & Formal Verification Specialist
+### OBJECTIVE: Execute a deep-trace logical audit to find the "Impossible State" and non-obvious failure modes.
+### VERIFICATION PROTOCOL:
+1. **CONCURRENCY HAZARD SCAN**: Simulate high-concurrency execution. Check for non-atomic operations, race conditions, and signal-handling deadlocks.
+2. **MEMORY & RESOURCE LINEAGE**: Audit the lifecycle of every high-cost object. Identify potential leaks in error-handling catch blocks and long-running loops.
+3. **LOGIC BRANCH TRUTH TABLE**: Exhaustively verify all conditional branches. Find "Dead Code" paths and unhandled edge cases in complex "if/else" or "switch" matrices.
+4. **STATE MACHINE AUDIT**: If applicable, map the system as a Finite State Machine (FSM). Identify illegal state transitions and "Black Hole" states.
+### METHODOLOGY:
+Apply "FMEA" (Failure Mode and Effects Analysis). For every identified flaw, provide:
+- **ROOT CAUSE**: The underlying architectural or logical reason.
+- **EXPLOSION RADIUS**: Cascading effects of this bug.
+- **MITIGATION**: A robust, production-ready fix.`
   },
   explain: { 
-    label: 'MENTOR', 
-    tag: 'KNOWLEDGE_MAP',
-    desc: 'Constructs a comprehensive mental model and high-resolution documentation of the system.',
-    prompt: '### ROLE: Technical Lead & System Documentarian\n### CONTEXT: You are onboarding a world-class senior engineer who needs to understand the "soul" of the project in 5 minutes.\n### TASK:\n1. MAP the lifecycle of a primary data object through the system.\n2. EXPLAIN the core design philosophy and why these specific libraries/patterns were chosen.\n3. DESCRIBE the entry points and critical execution paths.\n4. PROVIDE a high-level conceptual overview followed by granular module responsibilities.\n### GOAL: Maximize conceptual density while maintaining zero ambiguity.'
+    label: 'System mentor', 
+    tag: 'Knowledge map',
+    desc: 'Constructs a high-resolution mental model and multi-layered documentation of the system.',
+    prompt: `### ROLE: Principal Technical Lead & "Code Soul" Documentarian
+### OBJECTIVE: Decrypt the "Mental Model" of this system for a Senior Engineer onboarding.
+### KNOWLEDGE MAPPING:
+1. **DATA GENESIS & DESTRUCTION**: Trace the lifecycle of core data structures from ingestion/creation to persistence/deletion.
+2. **"FIRST PRINCIPLES" RATIONALE**: Explain the "Why" behind the "How". What trade-offs were made regarding latency vs consistency?
+3. **HOT PATHS & BOTTLENECKS**: Locate the critical 20% of code that handles 80% of the complexity or performance impact.
+4. **MODULE TAXONOMY**: Provide a hierarchical map of responsibilities. Clear the "Fog of War" around naming conventions and folder structures.
+5. **ENTRY POINT SEQUENCE**: Detail the boot sequence and main loops. How does the system "wake up" and "listen"?
+### GOAL: Achieve "High-Resolution Understanding". The reader must be able to predict the system's behavior without running the code.`
   },
   security: { 
-    label: 'SECOPS', 
-    tag: 'THREAT_MODEL',
-    desc: 'Rigorous zero-trust security audit focusing on OWASP, data integrity, and exploit vectors.',
-    prompt: '### ROLE: Senior Offensive Security Researcher & Red Teamer\n### CONTEXT: You are performing a white-box security audit. Assume a zero-trust environment.\n### TASK:\n1. AUDIT for OWASP Top 10 vulnerabilities (Injection, Broken Access Control, etc.).\n2. IDENTIFY insecure handling of PII or sensitive metadata.\n3. EVALUATE the attack surface of external API integrations and data ingestion points.\n4. SCAN for hardcoded secrets, weak cryptographic primitives, or insecure defaults.\n### OUTPUT:\nProvide a prioritized Vulnerability Report with "Exploitability" and "Impact" metrics for each finding, accompanied by secure-by-design remediation.'
+    label: 'Security review', 
+    tag: 'Threat model',
+    desc: 'Zero-trust audit focusing on OWASP, threat modeling, and defensive engineering.',
+    prompt: `### ROLE: Chief Information Security Officer (CISO) & Red Team Lead
+### OBJECTIVE: Perform a "Zero-Trust" offensive audit and defensive hardening plan.
+### ATTACK SURFACE ANALYSIS:
+1. **OWASP + STRIDE AUDIT**: Perform an exhaustive check for Spoofing, Tampering, Repudiation, Information Disclosure, DoS, and Elevation of Privilege.
+2. **CRYPTO & SECRETS HYGIENE**: Verify entropy of salts, strength of hashing, and absolute absence of hardcoded credentials/tokens.
+3. **INPUT SANITIZATION PIPELINE**: Audit the boundaries between untrusted input and internal sinks (DBs, APIs, Shells).
+4. **AUTHZ & AUTHN INTEGRITY**: Stress-test the session management and RBAC (Role-Based Access Control) implementation.
+5. **DEPENDENCY POISONING**: Identify risky 3rd party packages or supply-chain vulnerabilities.
+### OUTPUT:
+Provide a "Prioritized Vulnerability Stack". Rank by "Exploitability" vs "Business Impact". Provide "Secure-by-Design" code remediations.`
   },
   custom: { 
-    label: 'CUSTOM', 
-    tag: 'USER_DEFINED',
+    label: 'Custom instructions', 
+    tag: 'User defined',
     desc: 'Bypass standard protocols and inject your own specialized system-level meta-instructions.',
     prompt: '' 
   },
 };
 
 const FORMATS: { id: OutputFormat, label: string, sub: string }[] = [
-  { id: 'markdown', label: 'MARKDOWN', sub: 'Optimized for Chat-based LLMs' },
-  { id: 'xml', label: 'XML_TAGS', sub: 'Strict structure for Claude 3.5' },
-  { id: 'plain', label: 'RAW_TEXT', sub: 'Max token density / No overhead' },
+  { id: 'markdown', label: 'Markdown', sub: 'Standard for ChatGPT' },
+  { id: 'xml', label: 'XML Structure', sub: 'Best for Claude 3.5' },
+  { id: 'plain', label: 'Raw Text', sub: 'Maximum token density' },
 ];
 
 const App: React.FC = () => {
@@ -85,6 +124,7 @@ const App: React.FC = () => {
     try {
       const { tree, branch: fb, repoName } = await fetchRepoStructure({ repoUrl, branch, token, maxFileSizeKB: maxFileSize, customIgnores: customIgnores.split(',') });
       setFetchedRepoInfo({ name: repoName, branch: fb });
+      if (token) localStorage.setItem('gh_token', token);
       addToHistory(repoName);
       setProcessState(prev => ({ ...prev, status: 'selecting', tree, totalFiles: tree.length }));
     } catch (err: any) {
@@ -114,145 +154,162 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#050507] text-zinc-100 flex flex-col items-center py-6 md:py-20 px-4 relative overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[#050507] text-zinc-200 flex flex-col items-center py-8 md:py-24 px-4 relative overflow-x-hidden">
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[60vw] h-[60vw] bg-indigo-600/10 rounded-full blur-[120px] opacity-40"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+        <div className="absolute top-0 left-1/4 w-[60vw] h-[60vw] bg-indigo-600/5 rounded-full blur-[140px] opacity-30"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:60px_60px]"></div>
       </div>
 
-      <div className="w-full max-w-4xl space-y-12 relative z-10">
+      <div className="w-full max-w-4xl space-y-16 relative z-10">
         <Header />
 
-        <div className="bg-[#0d0d10]/40 backdrop-blur-2xl border border-white/5 rounded-[2rem] md:rounded-[3rem] p-6 sm:p-10 md:p-16 shadow-[0_40px_120px_rgba(0,0,0,0.6)] relative overflow-hidden group/container">
+        <div className="bg-[#0d0d10]/60 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-8 sm:p-12 md:p-20 shadow-[0_40px_120px_rgba(0,0,0,0.8)] relative group/container">
           {processState.status === 'completed' && processState.result ? (
             <ResultCard stats={{ files: processState.processedFiles, size: processState.resultSize, tokenCount: processState.tokenCount, content: processState.result }} onReset={reset} format={outputFormat} />
           ) : processState.status === 'selecting' ? (
             <FileTree files={processState.tree} onConfirm={handleMergeSelection} onCancel={reset} />
           ) : (
-            <form onSubmit={handleFetchTree} className="space-y-12">
-              <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-[10px] font-black text-indigo-400">01</span>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Target Environment</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="md:col-span-3">
-                    <Input label="Repository Link" placeholder="https://github.com/owner/repository" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} required />
+            <form onSubmit={handleFetchTree} className="space-y-20">
+              {/* Section 01: Source */}
+              <section className="relative">
+                {/* Fixed positioning for number - moved right (-left-6 instead of -left-24) to be near the dash */}
+                <div className="absolute -left-6 -top-2 text-6xl font-black text-white/[0.04] select-none pointer-events-none hidden md:block">01</div>
+                <div className="flex flex-col gap-8 md:pl-16 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px w-8 bg-indigo-500/50"></div>
+                    <h3 className="text-[12px] font-black uppercase tracking-[0.4em] text-white/90">Repository Source</h3>
                   </div>
-                  <Input label="Git Branch" placeholder="main" value={branch} onChange={(e) => setBranch(e.target.value)} />
+                  <div className="space-y-6">
+                    <Input label="GitHub URL" placeholder="https://github.com/owner/repository" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} required />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
+                       <Input label="Branch / Reference" placeholder="main" value={branch} onChange={(e) => setBranch(e.target.value)} />
+                       <div className="relative group/token">
+                          <div className="absolute -top-6 right-1">
+                            <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-zinc-500 hover:text-indigo-400 transition-colors uppercase tracking-widest flex items-center gap-1">
+                              Generate token
+                              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                            </a>
+                          </div>
+                          <Input label="Personal Access Token" type="password" placeholder="ghp_xxxxxxxxxxxx" value={token} onChange={(e) => setToken(e.target.value)} />
+                       </div>
+                    </div>
+                  </div>
                 </div>
               </section>
 
-              <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-[10px] font-black text-indigo-400">02</span>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Context Intelligence Strategy</h3>
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {(Object.keys(STRATEGY_DETAILS) as AIStrategy[]).map((id) => (
-                    <button
-                      key={id} type="button" onClick={() => { setAiStrategy(id); setShowFullPrompt(false); }}
-                      className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all duration-300 text-left relative overflow-hidden group/btn ${aiStrategy === id ? 'bg-indigo-500/10 border-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
-                    >
-                      <div className="flex items-center gap-2 w-full">
-                         <div className={`w-1.5 h-1.5 rounded-full transition-all ${aiStrategy === id ? 'bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.8)]' : 'bg-zinc-700'}`}></div>
-                         <span className={`text-[11px] font-black tracking-widest font-mono transition-colors ${aiStrategy === id ? 'text-indigo-300' : 'text-zinc-500 group-hover/btn:text-zinc-300'}`}>{STRATEGY_DETAILS[id].label}</span>
-                      </div>
-                      <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-tighter opacity-60 ml-3.5">{STRATEGY_DETAILS[id].tag}</span>
-                    </button>
-                  ))}
-                </div>
+              {/* Section 02: Analysis */}
+              <section className="relative">
+                <div className="absolute -left-6 -top-2 text-6xl font-black text-white/[0.04] select-none pointer-events-none hidden md:block">02</div>
+                <div className="flex flex-col gap-8 md:pl-16 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px w-8 bg-indigo-500/50"></div>
+                    <h3 className="text-[12px] font-black uppercase tracking-[0.4em] text-white/90">Analysis strategy</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {(Object.keys(STRATEGY_DETAILS) as AIStrategy[]).map((id) => (
+                      <button
+                        key={id} type="button" onClick={() => { setAiStrategy(id); setShowFullPrompt(false); }}
+                        className={`group/btn flex flex-col p-6 rounded-2xl border transition-all duration-500 text-left ${aiStrategy === id ? 'bg-indigo-500/10 border-indigo-500/40 ring-1 ring-indigo-500/20' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
+                      >
+                        <span className={`text-sm font-bold transition-colors ${aiStrategy === id ? 'text-white' : 'text-zinc-400 group-hover/btn:text-zinc-200'}`}>
+                          {STRATEGY_DETAILS[id].label}
+                        </span>
+                        <span className={`text-[10px] mt-1.5 font-medium px-2 py-0.5 rounded-full w-fit ${aiStrategy === id ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-zinc-500'}`}>
+                          {STRATEGY_DETAILS[id].tag}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
 
-                <div className="bg-white/5 rounded-2xl p-6 border border-white/5 animate-in fade-in slide-in-from-top-2 relative">
-                   <p className="text-xs text-zinc-400 leading-relaxed font-mono">
-                     <span className="text-indigo-400 mr-2">›</span>{STRATEGY_DETAILS[aiStrategy].desc}
-                   </p>
-                   {aiStrategy !== 'none' && aiStrategy !== 'custom' && (
-                     <div className="mt-5 pt-5 border-t border-white/5">
+                  <div className="bg-white/[0.02] rounded-3xl p-8 border border-white/5 animate-in fade-in duration-700">
+                    <p className="text-sm text-zinc-400 leading-relaxed italic font-light">
+                      &ldquo;{STRATEGY_DETAILS[aiStrategy].desc}&rdquo;
+                    </p>
+                    {aiStrategy !== 'none' && aiStrategy !== 'custom' && (
+                      <div className="mt-8 pt-6 border-t border-white/5 flex flex-col gap-4">
                         <button 
                           type="button" 
                           onClick={() => setShowFullPrompt(!showFullPrompt)}
-                          className="group flex items-center gap-2 text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] hover:text-indigo-400 transition-colors"
+                          className="text-[10px] font-bold text-zinc-500 hover:text-indigo-400 transition-colors flex items-center gap-2 tracking-[0.1em]"
                         >
-                          <span className={`w-4 h-px bg-zinc-800 transition-all group-hover:w-8 group-hover:bg-indigo-500`}></span>
-                          {showFullPrompt ? 'CLOSE SYSTEM INSTRUCTION' : 'VIEW META-PROMPT ENGINEERING DETAIL'}
+                          {showFullPrompt ? 'Hide detailed instructions' : 'View detailed meta-prompt'}
+                          <svg className={`w-3 h-3 transition-transform ${showFullPrompt ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
                         </button>
                         {showFullPrompt && (
-                          <div className="mt-4 p-5 bg-black/60 rounded-xl border border-indigo-500/20 animate-in zoom-in-95 duration-300 shadow-inner">
-                             <pre className="text-[10px] font-mono text-indigo-200/60 leading-relaxed whitespace-pre-wrap italic">
+                          <div className="p-6 bg-black/40 rounded-2xl border border-white/5 animate-in zoom-in-95 duration-300">
+                             <pre className="text-[11px] font-mono text-indigo-300/60 leading-relaxed whitespace-pre-wrap italic">
                                {STRATEGY_DETAILS[aiStrategy].prompt}
                              </pre>
                           </div>
                         )}
-                     </div>
-                   )}
-                </div>
-
-                {aiStrategy === 'custom' && (
-                  <div className="animate-in slide-in-from-top-2 duration-300">
-                     <textarea
-                       className="w-full bg-black/60 border border-white/10 rounded-2xl p-5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500/50 h-40 resize-none shadow-inner"
-                       placeholder="[SYSTEM_INPUT_REQUIRED]: Define your specialized AI role and constraints here..."
-                       value={customPrompt}
-                       onChange={(e) => setCustomPrompt(e.target.value)}
-                     />
+                      </div>
+                    )}
                   </div>
-                )}
-              </section>
 
-              <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-[10px] font-black text-indigo-400">03</span>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Output Encoding & Tuning</h3>
-                </div>
-
-                <div className="space-y-4">
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {FORMATS.map(f => (
-                        <button
-                          key={f.id} type="button" onClick={() => setOutputFormat(f.id)}
-                          className={`flex flex-col p-5 rounded-xl border transition-all text-left group ${outputFormat === f.id ? 'bg-indigo-500/10 border-indigo-500/50 shadow-lg' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
-                        >
-                          <span className={`text-[11px] font-black tracking-widest font-mono ${outputFormat === f.id ? 'text-indigo-300' : 'text-zinc-500 group-hover:text-zinc-300'}`}>{f.label}</span>
-                          <span className={`text-[9px] mt-1 font-bold uppercase tracking-tighter ${outputFormat === f.id ? 'text-indigo-200/50' : 'text-zinc-600'}`}>{f.sub}</span>
-                        </button>
-                      ))}
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                   <div 
-                     className={`p-6 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 ${stripComments ? 'bg-indigo-500/5 border-indigo-500/30' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
-                     onClick={() => setStripComments(!stripComments)}
-                   >
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">STRIP_COMMENTS</span>
-                        <div className={`w-8 h-4 rounded-full relative transition-colors ${stripComments ? 'bg-indigo-500' : 'bg-zinc-800'}`}>
-                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${stripComments ? 'left-4.5' : 'left-0.5'}`}></div>
-                        </div>
-                      </div>
-                      <p className="text-[9px] text-zinc-600 uppercase font-bold leading-tight">Eliminate boilerplate noise to focus LLM reasoning on core logic.</p>
-                   </div>
-
-                   <div 
-                     className={`p-6 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 ${minimalist ? 'bg-indigo-500/5 border-indigo-500/30' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
-                     onClick={() => setMinimalist(!minimalist)}
-                   >
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">COMPACT_MODE</span>
-                        <div className={`w-8 h-4 rounded-full relative transition-colors ${minimalist ? 'bg-indigo-500' : 'bg-zinc-800'}`}>
-                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${minimalist ? 'left-4.5' : 'left-0.5'}`}></div>
-                        </div>
-                      </div>
-                      <p className="text-[9px] text-zinc-600 uppercase font-bold leading-tight">Remove metadata headers to maximize token-to-code ratio.</p>
-                   </div>
+                  {aiStrategy === 'custom' && (
+                    <textarea
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500/50 h-40 resize-none transition-all"
+                      placeholder="Specify your custom AI role and context requirements here..."
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                    />
+                  )}
                 </div>
               </section>
 
-              <div className="pt-10 space-y-6">
-                <Button type="submit" className="w-full h-16 text-lg tracking-[0.2em] shadow-[0_20px_60px_rgba(79,70,229,0.2)]" isLoading={['fetching_tree', 'downloading'].includes(processState.status)}>
-                  INITIALIZE REPO SCAN
+              {/* Section 03: Export */}
+              <section className="relative">
+                <div className="absolute -left-6 -top-2 text-6xl font-black text-white/[0.04] select-none pointer-events-none hidden md:block">03</div>
+                <div className="flex flex-col gap-8 md:pl-16 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px w-8 bg-indigo-500/50"></div>
+                    <h3 className="text-[12px] font-black uppercase tracking-[0.4em] text-white/90">Export settings</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {FORMATS.map(f => (
+                      <button
+                        key={f.id} type="button" onClick={() => setOutputFormat(f.id)}
+                        className={`flex flex-col p-6 rounded-2xl border transition-all text-left ${outputFormat === f.id ? 'bg-indigo-500/10 border-indigo-500/40 ring-1 ring-indigo-500/10' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
+                      >
+                        <span className={`text-sm font-bold ${outputFormat === f.id ? 'text-white' : 'text-zinc-400'}`}>{f.label}</span>
+                        <span className={`text-[10px] mt-1 font-medium ${outputFormat === f.id ? 'text-indigo-400/80' : 'text-zinc-600'}`}>{f.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setStripComments(!stripComments)}
+                      className={`p-6 rounded-2xl border transition-all text-left flex justify-between items-center group ${stripComments ? 'bg-indigo-500/5 border-indigo-500/30' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-zinc-300">Clean source</span>
+                        <span className="text-[10px] text-zinc-500">Remove comments and docs to reduce noise.</span>
+                      </div>
+                      <div className={`w-1.5 h-1.5 rounded-full transition-all ${stripComments ? 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]' : 'bg-zinc-800'}`}></div>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => setMinimalist(!minimalist)}
+                      className={`p-6 rounded-2xl border transition-all text-left flex justify-between items-center group ${minimalist ? 'bg-indigo-500/5 border-indigo-500/30' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-zinc-300">Compact headers</span>
+                        <span className="text-[10px] text-zinc-500">Minimalist metadata to maximize tokens.</span>
+                      </div>
+                      <div className={`w-1.5 h-1.5 rounded-full transition-all ${minimalist ? 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]' : 'bg-zinc-800'}`}></div>
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <div className="pt-12 space-y-8">
+                <Button type="submit" className="w-full h-20 text-lg uppercase tracking-[0.3em] font-black" isLoading={['fetching_tree', 'downloading'].includes(processState.status)}>
+                  Initialize Scan
                 </Button>
                 {processState.status === 'idle' && <History onSelect={(repo) => setRepoUrl(`https://github.com/${repo}`)} />}
               </div>
