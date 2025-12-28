@@ -1,29 +1,21 @@
 
-const CACHE_NAME = 'repocontext-v1';
+const CACHE_NAME = 'repocontext-v2';
 
-// App Shell files to cache immediately
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
-  '/index.tsx',
-  '/App.tsx',
-  '/types.ts',
-  '/constants.ts',
-  '/services/githubService.ts',
-  '/components/Header.tsx',
-  '/components/Input.tsx',
-  '/components/Button.tsx',
-  '/components/ProgressBar.tsx',
-  '/components/ResultCard.tsx',
-  '/components/FileTree.tsx',
-  '/components/History.tsx',
-  '/assets/logo.png'
+  'index.html',
+  'index.tsx',
+  'App.tsx',
+  'types.ts',
+  'constants.ts',
+  'manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching App Shell');
+      // Use addAll with individual error catching if needed, 
+      // but here we keep it simple for the core shell.
       return cache.addAll(STATIC_ASSETS);
     })
   );
@@ -36,7 +28,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[Service Worker] Removing old cache', key);
             return caches.delete(key);
           }
         })
@@ -49,15 +40,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. API Strategy: Network Only
-  // We never want to cache GitHub API responses blindly, as repo content changes.
-  if (url.hostname === 'api.github.com') {
+  // Skip GitHub API - always live
+  if (url.hostname.includes('github.com')) {
     return;
   }
 
-  // 2. External Libraries (esm.sh, tailwind): Stale-While-Revalidate
-  // Cache them for speed, but update in background if versions change.
-  if (url.hostname === 'esm.sh' || url.hostname === 'cdn.tailwindcss.com') {
+  // Stale-while-revalidate for CDN assets (Tailwind, React)
+  if (url.hostname.includes('esm.sh') || url.hostname.includes('tailwindcss.com')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -71,7 +60,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. App Shell / Local Assets: Cache First, falling back to Network
+  // Cache first for local assets
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
