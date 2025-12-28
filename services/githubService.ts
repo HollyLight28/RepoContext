@@ -56,7 +56,6 @@ export class GitHubService {
   private token: string | null = null;
   
   constructor(token?: string) { 
-    // CRITICAL FIX: Trim whitespace which causes 404s/Auth errors
     this.token = token?.trim() || null; 
   }
 
@@ -65,7 +64,6 @@ export class GitHubService {
       'Accept': 'application/vnd.github.v3+json',
     };
     if (this.token) {
-      // Supports both Classic (ghp_) and Fine-grained (github_pat_) tokens
       headers['Authorization'] = `token ${this.token}`;
     }
     return headers;
@@ -76,18 +74,11 @@ export class GitHubService {
     
     if (!response.ok) {
         if (response.status === 404) {
-            // Detailed error diagnosis for the user
             if (this.token) {
-               throw new Error(`Access Denied (404). Either the URL is invalid, or your Token is missing the 'repo' scope (required for private repos).`);
+               throw new Error(`Access Denied (404). Either the URL is invalid, or your Token is missing the 'repo' scope.`);
             } else {
-               throw new Error(`Repository not found (404). If this is a private repo, you MUST provide a Token with 'repo' scope.`);
+               throw new Error(`Repository not found (404). If this is a private repo, you MUST provide a Token.`);
             }
-        }
-        if (response.status === 403) {
-           throw new Error(`API Rate Limit Exceeded (403). Check your token validity.`);
-        }
-        if (response.status === 401) {
-           throw new Error(`Authentication Failed (401). Your token is invalid or expired.`);
         }
         throw new Error(`GitHub API Error: ${response.status}`);
     }
@@ -96,10 +87,7 @@ export class GitHubService {
 
   async getRepoTree(owner: string, repo: string, branch: string): Promise<GitHubTreeItem[]> {
     const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers: this.getHeaders() });
-    if (!response.ok) {
-       if (response.status === 404) throw new Error("Branch not found. Check if the branch name is correct.");
-       throw new Error('Failed to fetch file tree structure.');
-    }
+    if (!response.ok) throw new Error('Failed to fetch file tree structure.');
     const data = await response.json();
     return data.tree;
   }
@@ -118,14 +106,49 @@ export class GitHubService {
 
   isIgnored(path: string, customIgnores: string[] = []): boolean {
     const parts = path.split('/');
-    const filename = parts[parts.length - 1];
     for (const part of parts) if (IGNORED_DIRECTORIES.has(part)) return true;
-    const ext = filename.split('.').pop()?.toLowerCase();
+    const ext = parts[parts.length - 1].split('.').pop()?.toLowerCase();
     if (ext && IGNORED_EXTENSIONS.has(ext)) return true;
     for (const pattern of customIgnores) if (pattern && path.includes(pattern)) return true;
     return false;
   }
 }
+
+/**
+ * Generates a visual tree structure string from an array of file paths.
+ */
+const generateTreeText = (paths: string[]): string => {
+  const root: any = {};
+  paths.forEach(path => {
+    const parts = path.split('/');
+    let current = root;
+    parts.forEach(part => {
+      if (!current[part]) current[part] = {};
+      current = current[part];
+    });
+  });
+
+  let output = "";
+  const render = (node: any, indent = "") => {
+    const keys = Object.keys(node).sort((a, b) => {
+      const aHasChildren = Object.keys(node[a]).length > 0;
+      const bHasChildren = Object.keys(node[b]).length > 0;
+      if (aHasChildren && !bHasChildren) return -1;
+      if (!aHasChildren && bHasChildren) return 1;
+      return a.localeCompare(b);
+    });
+
+    keys.forEach((key, index) => {
+      const isLast = index === keys.length - 1;
+      const connector = isLast ? "└── " : "├── ";
+      output += `${indent}${connector}${key}\n`;
+      render(node[key], indent + (isLast ? "    " : "│   "));
+    });
+  };
+
+  render(root);
+  return output;
+};
 
 const cleanCode = (code: string): string => {
   let cleaned = code.replace(/\/\/.*$/gm, '');
@@ -144,34 +167,17 @@ const formatFileContent = (path: string, content: string, format: OutputFormat):
 };
 
 export const fetchRepoStructure = async ({ repoUrl, branch, token, maxFileSizeKB, customIgnores }: any) => {
-  // Robust URL cleaner
-  const cleanUrl = repoUrl
-    .trim()
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '') // Remove domain
-    .replace(/\.git$/, '') // Remove .git extension
-    .split('/tree/')[0] // Remove /tree/branch part if user pasted full branch url
-    .split('/blob/')[0] // Remove /blob/file part
-    .replace(/\/$/, ''); // Remove trailing slash
-
-  // We only take the first two parts: owner and repo.
-  // This ignores extra paths if the regex didn't catch them.
+  const cleanUrl = repoUrl.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '').replace(/\.git$/, '').split('/tree/')[0].split('/blob/')[0].replace(/\/$/, '');
   const parts = cleanUrl.split('/');
-  if (parts.length < 2) {
-      throw new Error("Invalid GitHub URL format. Use: owner/repo");
-  }
+  if (parts.length < 2) throw new Error("Invalid GitHub URL format.");
   const owner = parts[0];
   const repo = parts[1];
 
-  // Token is trimmed inside the class constructor
   const service = new GitHubService(token);
   const repoInfo = await service.getRepoDetails(owner, repo);
   const targetBranch = branch || repoInfo.default_branch;
   const rawTree = await service.getRepoTree(owner, repo, targetBranch);
   
-  if (!rawTree || !Array.isArray(rawTree)) {
-      throw new Error("Empty or invalid repository structure returned.");
-  }
-
   const filteredTree = rawTree.filter(item => item.type === 'blob' && !service.isIgnored(item.path, customIgnores) && (!item.size || item.size < maxFileSizeKB * 1024));
   return { tree: filteredTree, branch: targetBranch, repoName: `${owner}/${repo}` };
 };
@@ -181,7 +187,7 @@ export const generateMergedContent = async ({ files, repoName, branch, token, fo
   const service = new GitHubService(token);
   let mergedContent = "";
 
-  // 1. Handle Prompt (Elite Meta-Prompts)
+  // 1. Handle Prompt
   if (strategy !== 'none') {
     const promptText = strategy === 'custom' ? customPrompt : PROMPTS[strategy as AIStrategy];
     if (promptText) {
@@ -189,11 +195,16 @@ export const generateMergedContent = async ({ files, repoName, branch, token, fo
     }
   }
 
-  // 2. Technical Header (Unless Minimalist)
+  // 2. Technical Header
   if (!minimalist) {
     mergedContent += `REPOSITORY_CONTEXT_DUMP\nIDENTIFIER: ${repoName}\nREF: ${branch}\nENTITY_COUNT: ${files.length}\n\n`;
   }
 
+  // 3. Repository Structure (File Tree)
+  mergedContent += `STRUCTURE_MAP:\n${generateTreeText(files.map(f => f.path))}\n`;
+  mergedContent += `================================\n\n`;
+
+  // 4. File Contents
   let processedCount = 0;
   for (let i = 0; i < files.length; i += CONCURRENCY_LIMIT) {
     const chunk = files.slice(i, i + CONCURRENCY_LIMIT);
