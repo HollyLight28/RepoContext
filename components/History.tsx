@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 
 interface HistoryProps {
@@ -21,18 +22,15 @@ export const History: React.FC<HistoryProps> = ({ onSelect }) => {
   if (history.length === 0) return null;
 
   return (
-    <div className="w-full mt-4 animate-in fade-in slide-in-from-bottom-2">
-      <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Recent Repos</h3>
+    <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
       <div className="flex flex-wrap gap-2">
         {history.map((repo) => (
           <button
             key={repo}
+            type="button"
             onClick={() => onSelect(repo)}
-            className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-full transition-colors border border-zinc-700 flex items-center gap-1.5"
+            className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 border border-zinc-800 px-2 py-1 transition-colors uppercase"
           >
-            <svg className="w-3 h-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
             {repo}
           </button>
         ))}

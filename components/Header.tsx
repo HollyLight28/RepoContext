@@ -1,61 +1,41 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 
 export const Header: React.FC = () => {
-  const [logoError, setLogoError] = useState(false);
-
   return (
-    <header className="mb-16 md:mb-24 text-center relative z-10 animate-in fade-in duration-1000">
-      <div className="flex flex-col items-center justify-center gap-8 group">
-        <div className="relative">
-          <div className="absolute inset-0 bg-indigo-500/20 blur-[60px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
-          
-          {!logoError ? (
-            <img 
-              src="assets/logo.png" 
-              alt="RepoContext Logo" 
-              className="relative h-24 md:h-36 w-auto object-contain drop-shadow-2xl transition-transform duration-700"
-              onError={() => setLogoError(true)}
-            />
-          ) : (
-            <div className="w-24 h-24 md:w-32 md:h-32 relative group-hover:scale-105 transition-transform duration-500">
-               <svg className="w-full h-full drop-shadow-2xl" viewBox="0 0 100 100" fill="none">
-                 <rect width="100" height="100" rx="32" fill="url(#logo_grad)" />
-                 <path d="M65 30V70" stroke="white" strokeWidth="6" strokeLinecap="round" />
-                 <path d="M40 30L40 50C40 60 50 60 65 60" stroke="white" strokeWidth="6" strokeLinecap="round" />
-                 <circle cx="40" cy="30" r="7" fill="white" />
-                 <circle cx="65" cy="30" r="7" fill="white" />
-                 <circle cx="65" cy="70" r="7" fill="white" />
-                 <defs>
-                   <linearGradient id="logo_grad" x1="0" y1="0" x2="100" y2="100">
-                     <stop stopColor="#6366F1" />
-                     <stop offset="1" stopColor="#818CF8" />
-                   </linearGradient>
-                 </defs>
-               </svg>
-            </div>
-          )}
-        </div>
+    <header className="w-full border-b border-zinc-800 bg-black/80 backdrop-blur-xl sticky top-0 z-50 shadow-lg">
+      <div className="max-w-5xl mx-auto px-6 py-5 flex justify-between items-center">
         
-        <div className="flex flex-col items-center">
-          <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter">
-            <span className="text-white">Repo</span>
-            <span className="text-indigo-400">Context</span>
-          </h1>
+        <div className="flex items-center gap-5">
+          {/* Matrix Core Icon - Professional Replacement for REC dot */}
+          <div className="relative w-9 h-9 flex items-center justify-center">
+            <div className="absolute inset-0 border-2 border-crimson-900/30 rotate-45 scale-90"></div>
+            <div className="absolute inset-1 border border-zinc-600/40 -rotate-12"></div>
+            <div className="w-2.5 h-2.5 bg-crimson-600 shadow-[0_0_15px_rgba(220,38,38,1)] z-10"></div>
+            <div className="absolute inset-0 bg-crimson-600/5 animate-pulse rounded-sm"></div>
+          </div>
           
-          <div className="flex items-center gap-4 mt-6">
-            <div className="h-px w-10 bg-indigo-500/30"></div>
-            <span className="text-[10px] md:text-xs font-bold text-zinc-500 tracking-[0.4em] uppercase">REPOSITORY SERIALIZATION PROTOCOL</span>
-            <div className="h-px w-10 bg-indigo-500/30"></div>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-black text-white tracking-tighter leading-none uppercase">
+              RepoContext
+            </h1>
+            <span className="text-[10px] font-mono text-zinc-200 uppercase tracking-[0.3em] mt-1.5 font-black">
+              Serialization Protocol v3.0
+            </span>
           </div>
         </div>
+
+        <div className="flex items-center gap-8">
+           <div className="flex flex-col items-end">
+             <span className="text-[8px] font-mono text-zinc-400 uppercase font-black tracking-widest">Auth_Status</span>
+             <div className="flex items-center gap-2 mt-1">
+               <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+               <span className="text-[10px] font-mono text-white font-bold">READY_STATE</span>
+             </div>
+           </div>
+        </div>
+
       </div>
-      
-      <p className="mt-10 text-zinc-400 text-base md:text-xl max-w-2xl mx-auto leading-relaxed font-light px-6 opacity-80">
-        Ingest your entire GitHub repository and compile it into a <span className="text-indigo-200 font-medium">single, token-optimized master file</span>.
-        <br className="hidden md:block" />
-        <span className="text-zinc-500 block mt-2 text-sm uppercase tracking-widest font-medium">The definitive bridge between codebase and LLM.</span>
-      </p>
     </header>
   );
 };

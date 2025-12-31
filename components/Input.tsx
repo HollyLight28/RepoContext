@@ -9,31 +9,38 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const Input: React.FC<InputProps> = ({ label, error, helperText, className = '', ...props }) => {
   return (
-    <div className="flex flex-col gap-2.5 w-full group">
-      <label className="text-[10px] font-black text-zinc-600 pl-0.5 uppercase tracking-[0.25em] group-focus-within:text-indigo-400 transition-colors duration-500">
-        {label}
-      </label>
+    <div className="flex flex-col gap-2 w-full group">
+      <div className="flex justify-between items-center px-0.5">
+        <label className="text-[10px] font-mono text-white uppercase tracking-widest font-black transition-colors group-focus-within:text-crimson-500">
+          {label}
+        </label>
+        {error && (
+          <span className="text-[10px] font-mono text-crimson-500 font-bold uppercase tracking-widest animate-pulse">
+            ![ERROR_DETECTED]
+          </span>
+        )}
+      </div>
+      
       <div className="relative">
         <input
           className={`
-            w-full bg-black/40 border rounded-2xl px-6 py-4.5 text-zinc-100 placeholder-zinc-700
-            transition-all duration-500 ease-out text-sm md:text-base
-            focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:bg-black/60
-            ${error 
-              ? 'border-red-500/40 focus:border-red-500/60' 
-              : 'border-white/5 focus:border-indigo-500/40 hover:border-white/10'}
+            w-full bg-zinc-900/40 border-zinc-700 border-x-0 border-t-0 border-b rounded-none px-0 py-3 text-white placeholder-zinc-700 font-mono text-sm
+            transition-all duration-300
+            focus:outline-none focus:border-crimson-500 focus:bg-white/[0.08]
+            disabled:opacity-40
+            ${error ? 'border-crimson-900' : 'hover:border-zinc-400'}
             ${className}
           `}
+          autoComplete="off"
+          spellCheck="false"
           {...props}
         />
       </div>
-      {error && (
-        <span className="text-[10px] text-red-400 pl-1 font-bold flex items-center gap-2 mt-1 uppercase tracking-wider">
-          {error}
-        </span>
-      )}
+      
       {helperText && !error && (
-        <span className="text-[10px] text-zinc-600 pl-1 mt-1 italic font-medium tracking-tight opacity-50">{helperText}</span>
+        <span className="text-[9px] text-zinc-300 font-mono italic mt-1.5 opacity-100 uppercase tracking-tight font-medium">
+          // {helperText}
+        </span>
       )}
     </div>
   );

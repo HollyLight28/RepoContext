@@ -11,15 +11,13 @@ interface FileTreeProps {
 
 export const FileTree: React.FC<FileTreeProps> = ({ files, onConfirm, onCancel }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [maxSizeLimit, setMaxSizeLimit] = useState<number>(50); // Default 50KB
+  const [maxSizeLimit, setMaxSizeLimit] = useState<number>(50);
   
-  // Find the actual maximum file size in the repo to set slider bounds
   const maxPossibleSize = useMemo(() => {
     const sizes = files.map(f => (f.size || 0) / 1024);
     return Math.ceil(Math.max(...sizes, 100));
   }, [files]);
 
-  // Initial selection includes all files that fit the default limit
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -29,7 +27,6 @@ export const FileTree: React.FC<FileTreeProps> = ({ files, onConfirm, onCancel }
     setSelected(new Set(initialPaths));
   }, [files]);
 
-  // Filter by search AND size
   const filteredFiles = useMemo(() => {
     return files.filter(f => {
       const matchesSearch = f.path.toLowerCase().includes(searchTerm.toLowerCase());
@@ -57,41 +54,41 @@ export const FileTree: React.FC<FileTreeProps> = ({ files, onConfirm, onCancel }
   };
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div className="flex flex-col h-full animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row justify-between items-end gap-4 mb-6 border-b border-zinc-900 pb-5">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <span className="text-indigo-400">📂</span> Select Files
+          <h2 className="text-sm font-bold text-zinc-100 font-mono uppercase tracking-[0.2em] flex items-center gap-3">
+            <span className="w-1.5 h-4 bg-crimson-600 block"></span>
+            File Selection Manifest
           </h2>
-          <p className="text-sm text-zinc-400 mt-1">Review structure and refine context.</p>
+          <p className="text-[10px] text-zinc-600 font-mono mt-2 uppercase tracking-widest italic">// Select nodes for context mapping</p>
         </div>
-        <div className="flex items-center gap-3 bg-indigo-500/10 px-4 py-2 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
-           <span className="text-sm font-mono text-indigo-400 font-black">{selected.size}</span>
-           <span className="text-[10px] text-indigo-300/60 uppercase tracking-widest font-bold">Selected</span>
+        <div className="text-right">
+           <span className="text-2xl font-mono text-zinc-200 leading-none">{selected.size}</span>
+           <span className="text-[9px] text-zinc-700 uppercase tracking-widest block font-bold">Files_Queue</span>
         </div>
       </div>
 
-      {/* Control Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
-        {/* Search */}
-        <div className="md:col-span-7 relative group">
-          <input 
-            type="text" 
-            placeholder="Search by filename..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-black/40 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all"
-          />
-          <svg className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5 group-focus-within:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4">
+        <div className="md:col-span-8">
+          <div className="relative bg-black/40 border-b border-zinc-800 focus-within:border-zinc-500 transition-colors">
+            <input 
+              type="text" 
+              placeholder="SEARCH_PATH..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent py-2.5 pl-9 text-[11px] font-mono text-zinc-400 focus:outline-none placeholder-zinc-800"
+            />
+            <svg className="w-3.5 h-3.5 text-zinc-700 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
         </div>
 
-        {/* Size Slider */}
-        <div className="md:col-span-5 bg-black/40 border border-zinc-800 rounded-xl p-3 px-4 flex flex-col justify-center">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Max File Size</span>
-            <span className="text-xs font-mono text-indigo-400 font-bold">{maxSizeLimit} KB</span>
+        <div className="md:col-span-4 bg-black/20 border-b border-zinc-800 p-2 flex flex-col justify-center">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[8px] font-mono text-zinc-700 uppercase font-bold tracking-tighter">Size_Filter</span>
+            <span className="text-[9px] font-mono text-crimson-600 font-bold tracking-tighter">{maxSizeLimit} KB</span>
           </div>
           <input 
             type="range" 
@@ -99,92 +96,71 @@ export const FileTree: React.FC<FileTreeProps> = ({ files, onConfirm, onCancel }
             max={maxPossibleSize} 
             value={maxSizeLimit} 
             onChange={(e) => setMaxSizeLimit(parseInt(e.target.value))}
-            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
+            className="w-full h-[2px] bg-zinc-900 appearance-none cursor-pointer accent-crimson-700"
           />
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-3 px-1">
-        <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">
-          Showing {filteredFiles.length} of {files.length} files
+      <div className="flex justify-between items-center mb-2 px-1">
+        <span className="text-[8px] font-mono text-zinc-800 uppercase font-black">
+          [ Indexing {filteredFiles.length} of {files.length} units ]
         </span>
         <button 
           onClick={toggleAll}
-          className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors"
+          className="text-[9px] font-mono text-zinc-500 hover:text-crimson-500 uppercase tracking-tighter transition-colors"
         >
-          {selected.size === filteredFiles.length ? 'Deselect All' : 'Select Visible'}
+          {selected.size === filteredFiles.length ? '[ NONE ]' : '[ ALL_VISIBLE ]'}
         </button>
       </div>
 
-      {/* File List */}
-      <div className="border border-zinc-800/60 rounded-2xl bg-black/40 h-80 overflow-hidden flex flex-col mb-8 shadow-inner relative">
-        <div className="overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent p-3 space-y-1">
+      <div className="border border-zinc-900 bg-black/20 h-96 flex flex-col mb-8 relative">
+        <div className="overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-zinc-800 p-0.5">
           {filteredFiles.length > 0 ? (
             filteredFiles.map((file) => (
               <label 
                 key={file.path} 
                 className={`
-                  flex items-center gap-4 p-2.5 rounded-xl cursor-pointer transition-all duration-300 group
-                  ${selected.has(file.path) ? 'bg-indigo-500/10 border border-indigo-500/10' : 'bg-transparent border border-transparent hover:bg-white/5'}
+                  flex items-center gap-3 px-3 py-1.5 cursor-pointer transition-all group
+                  ${selected.has(file.path) ? 'bg-zinc-900/40' : 'hover:bg-zinc-900/20'}
                 `}
               >
-                <div className="relative flex items-center justify-center w-5 h-5">
+                <div className="relative flex items-center justify-center w-3 h-3">
                   <input 
                     type="checkbox" 
                     checked={selected.has(file.path)}
                     onChange={() => toggleFile(file.path)}
-                    className="peer appearance-none w-5 h-5 rounded-lg border border-zinc-700 bg-zinc-800/50 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer"
+                    className="appearance-none w-3 h-3 border border-zinc-800 bg-transparent checked:bg-crimson-800 checked:border-crimson-600 transition-all"
                   />
-                  <svg className="w-3 h-3 text-white absolute pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
                 </div>
                 
-                <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
-                  <div className="flex flex-col min-w-0">
-                    <span className={`text-sm font-mono truncate transition-colors ${selected.has(file.path) ? 'text-indigo-100' : 'text-zinc-400 group-hover:text-zinc-300'}`}>
-                      {file.path}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${file.size && file.size > 20480 ? 'text-amber-400 bg-amber-400/10' : 'text-zinc-600 bg-zinc-800/50'}`}>
-                      {file.size ? (file.size / 1024).toFixed(1) + ' KB' : '0 KB'}
-                    </span>
-                  </div>
+                <div className="flex-1 min-w-0 flex items-center justify-between">
+                  <span className={`text-[11px] font-mono truncate ${selected.has(file.path) ? 'text-zinc-200' : 'text-zinc-700 group-hover:text-zinc-500'}`}>
+                    {file.path}
+                  </span>
+                  <span className="text-[8px] font-mono text-zinc-800 ml-4">
+                    {file.size ? (file.size / 1024).toFixed(0) + 'kb' : '0kb'}
+                  </span>
                 </div>
               </label>
             ))
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4 opacity-40">
-              <div className="p-4 bg-zinc-900/50 rounded-full">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold uppercase tracking-widest mb-1">No matches</p>
-                <p className="text-[10px]">Try adjusting filters or search term</p>
-              </div>
+            <div className="h-full flex items-center justify-center text-[9px] font-mono text-zinc-800 uppercase">
+              // NO_NODES_MATCH_CRITERIA
             </div>
           )}
         </div>
-        {/* Shadow Overlay for scroll depth */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
       </div>
 
-      <div className="flex gap-4 justify-end pt-4 border-t border-white/5">
-        <button 
-          onClick={onCancel} 
-          className="px-6 py-3 rounded-xl text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-colors uppercase tracking-widest"
-        >
-          Cancel
-        </button>
+      <div className="flex gap-4 justify-between pt-6 border-t border-zinc-900">
+        <Button variant="ghost" onClick={onCancel}>
+          {'< ABORT_OP'}
+        </Button>
         <Button 
           onClick={() => onConfirm(Array.from(selected))} 
-          disabled={selected.size === 0} 
-          className="min-w-[200px] shadow-2xl shadow-indigo-500/10"
+          disabled={selected.size === 0}
+          className="min-w-[200px]"
         >
-          Compile {selected.size} Files
+          START_SERIALIZATION {'>'}
         </Button>
       </div>
     </div>
