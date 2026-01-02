@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'repocontext-v2';
+const CACHE_NAME = 'repocontext-v3';
 
 const STATIC_ASSETS = [
   '/',
@@ -8,14 +8,13 @@ const STATIC_ASSETS = [
   'App.tsx',
   'types.ts',
   'constants.ts',
-  'manifest.json'
+  'manifest.json',
+  'icon.svg'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use addAll with individual error catching if needed, 
-      // but here we keep it simple for the core shell.
       return cache.addAll(STATIC_ASSETS);
     })
   );
@@ -40,18 +39,20 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip GitHub API - always live
+  // Skip GitHub API - always live (never cache API responses)
   if (url.hostname.includes('github.com')) {
     return;
   }
 
-  // Stale-while-revalidate for CDN assets (Tailwind, React)
+  // Strategy 1: Stale-while-revalidate for CDN assets (Tailwind, React imports)
   if (url.hostname.includes('esm.sh') || url.hostname.includes('tailwindcss.com')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
           return networkResponse;
         });
         return cachedResponse || fetchPromise;
@@ -60,10 +61,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache first for local assets
+  // Strategy 2: Cache First, then Network (with dynamic caching for new files)
+  // This handles all local components (e.g., /components/Header.tsx) automatically.
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      
+      return fetch(event.request).then((networkResponse) => {
+        // Cache valid responses from our own origin (basic type)
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return networkResponse;
+      });
     })
   );
 });

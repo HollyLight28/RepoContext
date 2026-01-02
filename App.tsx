@@ -176,7 +176,23 @@ const App: React.FC = () => {
                 <Input label="REPO_URI" placeholder="owner/repo" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} required />
                 <div className="grid grid-cols-2 gap-10">
                   <Input label="BRANCH_REF" placeholder="HEAD" value={branch} onChange={(e) => setBranch(e.target.value)} />
-                  <Input label="AUTH_TOKEN" type="password" placeholder="OPTIONAL" value={token} onChange={(e) => setToken(e.target.value)} />
+                  <div className="flex flex-col">
+                    <Input 
+                      label="AUTH_TOKEN"
+                      type="password" 
+                      placeholder="OPTIONAL" 
+                      value={token} 
+                      onChange={(e) => setToken(e.target.value)} 
+                    />
+                    <a 
+                      href="https://github.com/settings/tokens/new?scopes=repo&description=RepoContext_App"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 text-[9px] text-zinc-600 hover:text-crimson-500 border-b border-dashed border-zinc-700 hover:border-crimson-500 transition-colors self-end font-mono font-bold"
+                    >
+                      ( GENERATE_NEW_KEY ↗ )
+                    </a>
+                  </div>
                 </div>
                 <History onSelect={(repo) => setRepoUrl(`https://github.com/${repo}`)} />
               </div>
